@@ -1,0 +1,1 @@
+src\middleware\authGuard.ts:31:    const queryTokenRaw = req.query.token;

@@ -1,0 +1,23 @@
+bn88-frontend-dashboard-v12\src\lib\auth.ts:1:const TOKEN_KEY = "bn9.admin.token";
+bn88-frontend-dashboard-v12\src\lib\auth.ts:17:// เนเธชเน Authorization เน€เธเธเธฒเธฐเน€เธกเธทเนเธญเธกเธต token เน€เธ—เนเธฒเธเธฑเนเธ
+bn88-frontend-dashboard-v12\src\lib\auth.ts:19:  const t = localStorage.getItem("BN9_TOKEN");
+bn88-frontend-dashboard-v12\src\lib\auth.ts:20:  return t ? { Authorization: `Bearer ${t}` } : {};
+bn88-frontend-dashboard-v12\src\components\AuthBadge.tsx:4:const getToken = () => localStorage.getItem("bn9.admin.token") || "";
+bn88-frontend-dashboard-v12\src\lib\api.ts:434:// เนเธซเนเธ—เธฑเนเธเนเธเธฃเน€เธเธเธ•เนเนเธเน key เน€เธ”เธตเธขเธง (เนเธซเนเธชเธญเธ”เธเธฅเนเธญเธเธเธฑเธ RequireAuth เธ–เนเธฒเน€เธ”เธดเธกเนเธเน bn9_jwt)
+bn88-frontend-dashboard-v12\src\lib\api.ts:435:export const TOKEN_KEY = "bn9_jwt";
+bn88-frontend-dashboard-v12\src\lib\api.ts:439:  "bn9.admin.token",
+bn88-frontend-dashboard-v12\src\lib\api.ts:440:  "BN9_TOKEN",
+bn88-frontend-dashboard-v12\src\lib\api.ts:518:  API.defaults.headers.common.Authorization = `Bearer ${bootToken}`;
+bn88-frontend-dashboard-v12\src\lib\api.ts:578:  if (token) headers.Authorization = `Bearer ${token}`;
+bn88-frontend-dashboard-v12\src\lib\api.ts:598:      delete API.defaults.headers.common.Authorization;
+bn88-frontend-dashboard-v12\src\lib\api.ts:623:  API.defaults.headers.common.Authorization = `Bearer ${r.data.token}`;
+bn88-frontend-dashboard-v12\src\lib\api.ts:630:  delete API.defaults.headers.common.Authorization;
+bn88-frontend-dashboard-v12\src\lib\admin.ts:27:    localStorage.setItem("bn9.admin.token", v);
+bn88-frontend-dashboard-v12\src\lib\admin.ts:36:  if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
+bn88-frontend-dashboard-v12\src\pages\ChatCenter.tsx:864:      rawToken && rawToken.startsWith("Bearer ")
+bn88-frontend-dashboard-v12\src\pages\ChatCenter.tsx:867:          ? `Bearer ${rawToken}`
+bn88-frontend-dashboard-v12\src\pages\ChatCenter.tsx:877:    if (token) h["Authorization"] = token;
+bn88-frontend-dashboard-v12\src\pages\Login.tsx:16:      const legacy = localStorage.getItem("BN9_TOKEN");
+bn88-frontend-dashboard-v12\src\pages\Login.tsx:19:        localStorage.removeItem("BN9_TOKEN");
+bn88-frontend-dashboard-v12\src\components\ProtectedRoute.tsx:5:  const token = localStorage.getItem("bn9_jwt");
+bn88-frontend-dashboard-v12\src\pages\PresetsPage.tsx:40:      Authorization: `Bearer ${getToken()}`,

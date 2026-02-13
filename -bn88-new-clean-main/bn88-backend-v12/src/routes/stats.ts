@@ -1,0 +1,170 @@
+// src/routes/stats.ts
+import { Router, type Request, type Response } from "express";
+import { prisma } from "../lib/prisma";
+
+const router = Router();
+
+/* ------------------------- helpers ------------------------- */
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+const getStr = (q: unknown): string =>
+  typeof q === "string"
+    ? q.trim()
+    : Array.isArray(q)
+    ? String(q[0] ?? "").trim()
+    : "";
+
+const getTenant = (req: Request): string =>
+  (req.headers["x-tenant"] as string) ||
+  process.env.TENANT_DEFAULT ||
+  "bn9";
+
+const parseSinceDays = (q: unknown, fallback = 7): number => {
+  const raw = Number(getStr(q) || fallback);
+  if (!Number.isFinite(raw)) return fallback;
+  return Math.min(Math.max(Math.round(raw), 1), 365);
+};
+
+/* ------------------------------------------------------------------
+ * GET /api/stats?sinceDays=7
+ * ------------------------------------------------------------------ */
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    const tenant = getTenant(req);
+    const sinceDays = parseSinceDays(req.query.sinceDays, 7);
+
+    const toUTC = new Date();
+    const fromUTC = new Date(toUTC.getTime() - sinceDays * 24 * 60 * 60 * 1000);
+
+    const [messages, cases, bots] = await Promise.all([
+      prisma.chatMessage.count({
+        where: { tenant, createdAt: { gte: fromUTC, lte: toUTC } },
+      }),
+      prisma.caseItem.count({
+        where: { tenant, createdAt: { gte: fromUTC, lte: toUTC } },
+      }),
+      prisma.bot.count({ where: { tenant } }),
+    ]);
+
+    return res.json({
+      ok: true,
+      tenant,
+      window: {
+        sinceDays,
+        fromUTC: fromUTC.toISOString(),
+        toUTC: toUTC.toISOString(),
+      },
+      totals: { messages, cases, bots },
+    });
+  } catch (e) {
+    console.error("[/stats]", e);
+    return res.status(500).json({ ok: false, message: "internal_error" });
+  }
+});
+
+/* ------------------------------------------------------------------
+ * GET /api/stats/daily?botId=...&dateKey=YYYY-MM-DD(ถ้าไม่ส่งใช้วันนี้)
+ * ------------------------------------------------------------------ */
+router.get("/daily", async (req: Request, res: Response) => {
+  try {
+    const botId = getStr(req.query.botId);
+    const dateKey = getStr(req.query.dateKey) || todayKey();
+
+    if (!botId) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "missing_botId" });
+    }
+
+    const row = await prisma.statDaily.findUnique({
+      where: { botId_dateKey: { botId, dateKey } },
+      select: {
+        botId: true,
+        dateKey: true,
+        total: true,
+        text: true,
+        follow: true,
+        unfollow: true,
+      },
+    });
+
+    return res.json({
+      ok: true,
+      dateKey,
+      stats:
+        row ?? {
+          botId,
+          dateKey,
+          total: 0,
+          text: 0,
+          follow: 0,
+          unfollow: 0,
+        },
+    });
+  } catch (e) {
+    console.error("[/stats/daily]", e);
+    return res.status(500).json({
+      ok: false,
+      message: "internal_error",
+    });
+  }
+});
+
+/* ------------------------------------------------------------------
+ * GET /api/stats/range?botId=...&from=YYYY-MM-DD&to=YYYY-MM-DD
+ * - รวมสถิติช่วงวันที่ (เรียงจากเก่ามากไปใหม่)
+ * ------------------------------------------------------------------ */
+router.get("/range", async (req: Request, res: Response) => {
+  try {
+    const botId = getStr(req.query.botId);
+    const from = getStr(req.query.from);
+    const to = getStr(req.query.to);
+
+    if (!botId) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "missing_botId" });
+    }
+
+    const where: any = { botId };
+
+    if (from || to) {
+      where.dateKey = {};
+      if (from) where.dateKey.gte = from;
+      if (to) where.dateKey.lte = to;
+    }
+
+    const items = await prisma.statDaily.findMany({
+      where,
+      orderBy: { dateKey: "asc" },
+      select: {
+        dateKey: true,
+        total: true,
+        text: true,
+        follow: true,
+        unfollow: true,
+      },
+    });
+
+    const summary = items.reduce(
+      (a, x) => ({
+        total: a.total + (x.total ?? 0),
+        text: a.text + (x.text ?? 0),
+        follow: a.follow + (x.follow ?? 0),
+        unfollow: a.unfollow + (x.unfollow ?? 0),
+      }),
+      { total: 0, text: 0, follow: 0, unfollow: 0 }
+    );
+
+    return res.json({ ok: true, items, summary });
+  } catch (e) {
+    console.error("[/stats/range]", e);
+    return res.status(500).json({
+      ok: false,
+      message: "internal_error",
+    });
+  }
+});
+
+export default router;
+

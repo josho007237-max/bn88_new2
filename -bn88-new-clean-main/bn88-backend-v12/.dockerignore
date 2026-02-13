@@ -1,0 +1,17 @@
+node_modules
+dist
+*.log
+npm-debug.log*
+.env
+.env.local
+.env.*.local
+prisma/dev.db
+prisma/dev.db-journal
+uploads/*
+!uploads/.gitkeep
+coverage
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store

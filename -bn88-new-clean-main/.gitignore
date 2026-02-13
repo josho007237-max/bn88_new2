@@ -1,0 +1,94 @@
+# ===============================================
+# BN88 Project .gitignore
+# ===============================================
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+dist-ssr/
+.vite/
+.next/
+.nuxt/
+.output/
+out/
+*.tsbuildinfo
+
+# Environment files (do not commit secrets)
+.env
+.env.*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Logs
+logs/
+log/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Databases
+dev.db
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+prisma/*.db
+prisma/*.db-journal
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+.cache/
+
+# IDE / editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temp
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Cloudflare / Workers
+.wrangler/
+.wrangler-d1/
+.dev.vars
+wrangler.toml
+worker-configuration.d.ts
+
+# Uploads and generated content
+uploads/
+upload/
+public/uploads/
+
+# Secrets
+*.pem
+*.key
+*.cert
+secrets/
+.secrets/
