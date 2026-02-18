@@ -51,6 +51,23 @@ function permissionsFromRoles(roles?: string[]): Set<PermissionName> {
   return set;
 }
 
+function permissionsFromClaims(rawPerms?: string[]): Set<PermissionName> {
+  const set = new Set<PermissionName>();
+  const allowed = new Set<PermissionName>([
+    "manageBots",
+    "manageCampaigns",
+    "viewReports",
+  ]);
+  (rawPerms ?? []).forEach((perm) => {
+    const normalized = String(perm ?? "").trim();
+    if (!normalized) return;
+    if (allowed.has(normalized as PermissionName)) {
+      set.add(normalized as PermissionName);
+    }
+  });
+  return set;
+}
+
 async function collectPermissions(adminId: string): Promise<Set<string>> {
   const hasDelegates =
     typeof (prisma as any).adminUserRole?.findMany === "function" &&
@@ -132,12 +149,6 @@ export function requirePermission(required: PermissionName[]) {
       });
     }
 
-    if (!adminId) {
-      logAuthState("missing_adminId");
-      debugFieldTrace("missing_adminId");
-      return res.status(401).json({ ok: false, message: "unauthorized" });
-    }
-
     if (!roles.length && (auth?.tokenType === "admin-api" || (auth as any)?.type === "admin")) {
       roles = ["Admin"];
     }
@@ -152,6 +163,18 @@ export function requirePermission(required: PermissionName[]) {
       const claimPerms = permissionsFromRoles(roles);
       if (claimPerms.size > 0 && required.some((perm) => claimPerms.has(perm))) {
         return next();
+      }
+
+      // 1.1) รองรับ permission claim ตรง ๆ จาก token
+      const directPerms = permissionsFromClaims((auth?.permissions ?? []).map(String));
+      if (directPerms.size > 0 && required.some((perm) => directPerms.has(perm))) {
+        return next();
+      }
+
+      if (!adminId) {
+        logAuthState("missing_adminId");
+        debugFieldTrace("missing_adminId");
+        return res.status(401).json({ ok: false, message: "unauthorized" });
       }
 
       // 2) ถ้ายังไม่พอ → เช็คจาก DB (RBAC)
@@ -195,4 +218,3 @@ export function requirePermission(required: PermissionName[]) {
     }
   };
 }
-
