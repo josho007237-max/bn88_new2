@@ -70,6 +70,7 @@ import { authGuard } from "./mw/auth";
 import { sseHandler } from "./live";
 import { metricsSseHandler, metricsStreamHandler } from "./routes/metrics.live";
 import { prisma } from "./lib/prisma";
+import { runDevPreflight } from "./lib/devPreflight";
 
 import { startEngagementScheduler } from "./services/engagementScheduler";
 import { startCampaignScheduleWorker } from "./queues/campaign.queue";
@@ -128,16 +129,31 @@ if (webhookBaseUrl) {
 }
 
 /* Workers */
-try {
-  startCampaignScheduleWorker();
-} catch (err) {
-  console.error("[BOOT] campaign worker start failed", err);
-}
-try {
-  startMessageWorker();
-} catch (err) {
-  console.error("[BOOT] message worker start failed", err);
-}
+void runDevPreflight()
+  .then((result) => {
+    if (!result.prismaWritable) {
+      console.warn("[BOOT] prisma directory is not writable; check DATABASE_URL path/permissions");
+    }
+
+    if (result.redisEnabled && !result.redisReachable) {
+      console.warn("[BOOT] Redis unavailable; queue workers are disabled in this run");
+      return;
+    }
+
+    try {
+      startCampaignScheduleWorker();
+    } catch (err) {
+      console.error("[BOOT] campaign worker start failed", err);
+    }
+    try {
+      startMessageWorker();
+    } catch (err) {
+      console.error("[BOOT] message worker start failed", err);
+    }
+  })
+  .catch((err) => {
+    console.warn("[BOOT] preflight failed; continuing with queue workers disabled", err);
+  });
 
 /* simple probes */
 app.get("/", (_req, res) => res.send("ok"));
