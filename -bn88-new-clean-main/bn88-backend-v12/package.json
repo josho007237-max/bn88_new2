@@ -5,8 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "dev:prep": "prisma generate && prisma db push && npm run seed:dev",
-    "dev:backend": "npx tsx watch src/server.ts",
-    "dev:port": "node -e \"process.env.PORT='3001';require('child_process').spawn('npx',['tsx','watch','src/server.ts'],{stdio:'inherit',env:process.env});\"",
+    "dev:backend": "tsx watch src/server.ts",
+    "dev:port": "node -e \"process.env.PORT='3001';require('child_process').spawn('tsx',['watch','src/server.ts'],{stdio:'inherit',env:process.env});\"",
     "dev:tunnel": "cloudflared tunnel run bn9-api",
     "dev:frontend": "npm --prefix ..\\bn88-frontend-dashboard-v12 run dev -- --port 5555",
     "dev:all": "run-p dev:backend dev:tunnel dev:frontend",
@@ -27,13 +27,14 @@
     "prisma:reset": "prisma migrate reset --force",
     "prisma:studio": "prisma studio",
     "migrate:deploy": "prisma migrate deploy",
-    "dev": "npx tsx watch src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "doctor": "node -v && npm -v && node -e \"const fs=require('fs');const p='node_modules/.bin/tsx';const PORT=process.env.PORT||'3000';const REDIS_URL=process.env.REDIS_URL||'';const REDIS_PORT=process.env.REDIS_PORT||'';const REDIS_HOST=process.env.REDIS_HOST||'';console.log(fs.existsSync(p)?'tsx OK: '+p:'tsx MISSING: '+p);console.log('PORT='+PORT);console.log('REDIS_URL='+REDIS_URL);console.log('REDIS_HOST='+REDIS_HOST);console.log('REDIS_PORT='+REDIS_PORT);\"",
     "postinstall": "prisma generate",
     "studio": "prisma studio --port 5556",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "check:env": "powershell -ExecutionPolicy Bypass -File ./scripts/check-env.ps1"
   },
   "dependencies": {
     "@line/bot-sdk": "^10.5.0",
