@@ -87,7 +87,7 @@ export function requirePermission(required: PermissionName[]) {
     const auth = (req as any).auth as AuthFromGuard | undefined;
 
     const adminId = auth?.sub || auth?.id; // ✅ รองรับ sub เป็นหลัก
-    const roles = (auth?.roles ?? []).map((r) => String(r));
+    let roles = (auth?.roles ?? []).map((r) => String(r));
     const authFieldNames = auth ? Object.keys(auth) : [];
     const route = `${req.method} ${req.originalUrl || req.url}`;
     const tenantHeader = ((req.headers["x-tenant"] as string | undefined) ?? "").trim();
@@ -136,6 +136,10 @@ export function requirePermission(required: PermissionName[]) {
       logAuthState("missing_adminId");
       debugFieldTrace("missing_adminId");
       return res.status(401).json({ ok: false, message: "unauthorized" });
+    }
+
+    if (!roles.length && (auth?.tokenType === "admin-api" || (auth as any)?.type === "admin")) {
+      roles = ["Admin"];
     }
 
     const rolesLower = new Set(roles.map(norm));

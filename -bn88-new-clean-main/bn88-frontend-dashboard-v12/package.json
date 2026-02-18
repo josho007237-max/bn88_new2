@@ -5,8 +5,8 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "node -e \"process.env.ESLINT_USE_FLAT_CONFIG='false'; const {spawnSync}=require('child_process'); const res=spawnSync(process.platform==='win32'?'npx.cmd':'npx',['eslint','.'],{stdio:'inherit',env:process.env}); process.exit(res.status??0);\"",
+    "lint:fix": "node -e \"process.env.ESLINT_USE_FLAT_CONFIG='false'; const {spawnSync}=require('child_process'); const res=spawnSync(process.platform==='win32'?'npx.cmd':'npx',['eslint','.','--fix'],{stdio:'inherit',env:process.env}); process.exit(res.status??0);\"",
     "test": "vitest run --passWithNoTests",
     "dev": "vite --port 5555",
     "build": "vite build",

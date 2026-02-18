@@ -6,14 +6,16 @@
 
 1. [Architecture Overview (Inbound / Outbound + Ports)](#architecture-overview)
 2. [Work Status (Done / Doing / Blocked)](#work-status)
-3. [Master Worklist Phase 0 → Phase 11](#master-worklist-phase-0--phase-11)
-4. [PowerShell Quick Checks by Phase](#powershell-quick-checks-by-phase)
-5. [P0 Critical Files to Modify](#p0-critical-files-to-modify)
-6. [6. Completeness addendum (เติมเต็มส่วนที่หายไป) — Data, RBAC, Observability, Testing, Ops, Security](#6-completeness-addendum-เติมเต็มส่วนที่หายไป--data-rbac-observability-testing-ops-security)
-7. [7. Phase insertion map (เติมงานลง Phase เดิมแบบไม่รื้อ)](#7-phase-insertion-map-เติมงานลง-phase-เดิมแบบไม่รื้อ)
-8. [8. PowerShell quick checks (additional append)](#8-powershell-quick-checks-additional-append)
-9. [9. Feasibility and minimal-diff prioritisation (วิเคราะห์ความเป็นไปได้แบบไม่รื้อ)](#9-feasibility-and-minimal-diff-prioritisation-วิเคราะห์ความเป็นไปได้แบบไม่รื้อ)
-10. [10. ManyChat-style Flow Engine (Quick Replies + Follow-up/Retry + Session State) — Multi-channel (LINE/Telegram/Messenger/Webchat)](#10-manychat-style-flow-engine-quick-replies--follow-upretry--session-state--multi-channel-linetelegrammessengerwebchat)
+3. [Current Worklist (Phase 1 → Phase 8) — Bottleneck-driven](#current-worklist-phase-1--phase-8--bottleneck-driven)
+4. [PowerShell Immediate Checklist (12+ commands)](#powershell-immediate-checklist-12-commands)
+5. [Master Worklist Phase 0 → Phase 11](#master-worklist-phase-0--phase-11)
+6. [PowerShell Quick Checks by Phase](#powershell-quick-checks-by-phase)
+7. [P0 Critical Files to Modify](#p0-critical-files-to-modify)
+8. [6. Completeness addendum (เติมเต็มส่วนที่หายไป) — Data, RBAC, Observability, Testing, Ops, Security](#6-completeness-addendum-เติมเต็มส่วนที่หายไป--data-rbac-observability-testing-ops-security)
+9. [7. Phase insertion map (เติมงานลง Phase เดิมแบบไม่รื้อ)](#7-phase-insertion-map-เติมงานลง-phase-เดิมแบบไม่รื้อ)
+10. [8. PowerShell quick checks (additional append)](#8-powershell-quick-checks-additional-append)
+11. [9. Feasibility and minimal-diff prioritisation (วิเคราะห์ความเป็นไปได้แบบไม่รื้อ)](#9-feasibility-and-minimal-diff-prioritisation-วิเคราะห์ความเป็นไปได้แบบไม่รื้อ)
+12. [10. ManyChat-style Flow Engine (Quick Replies + Follow-up/Retry + Session State) — Multi-channel (LINE/Telegram/Messenger/Webchat)](#10-manychat-style-flow-engine-quick-replies--follow-upretry--session-state--multi-channel-linetelegrammessengerwebchat)
 
 ## Architecture Overview
 
@@ -56,6 +58,50 @@
 ### Blocked
 
 ไม่มี (เคลียร์แล้วตามการตรวจล่าสุด)
+
+## Current Worklist (Phase 1 → Phase 8) — Bottleneck-driven
+
+- [ ] **Phase 1 – Backend :3000 stability (boot/health/worker crash loop).**
+  - Acceptance: `/api/health` ตอบสม่ำเสมอ, ไม่มี restart loop, SSE ไม่หลุดจาก backend crash
+  - Files: `bn88-backend-v12/src/server.ts`, `bn88-backend-v12/src/config.ts`, `bn88-backend-v12/src/queues/*`
+- [ ] **Phase 2 – Auth guard alignment สำหรับ admin routes (manageBots/secrets).**
+  - Acceptance: token จาก `/api/admin/auth/login` ใช้ได้ทุก `/api/admin/*` ที่มี `requirePermission`
+  - Files: `bn88-backend-v12/src/mw/auth.ts`, `bn88-backend-v12/src/middleware/basicAuth.ts`, `bn88-backend-v12/src/routes/admin/auth.ts`
+- [ ] **Phase 3 – RBAC 401/403 (manageBots/secrets) ให้คงที่และคาดเดาได้.**
+  - Acceptance: admin ผ่าน, viewer ถูก 403, ไม่มี 401 ตอนมี token ถูกต้อง
+  - Files: `bn88-backend-v12/src/middleware/basicAuth.ts`, `bn88-backend-v12/src/routes/admin/bots.ts`
+- [ ] **Phase 4 – line-content 401 เพราะ `<img src>` ส่ง header ไม่ได้.**
+  - Acceptance: URL แบบ `?token=&tenant=` ใช้ได้ และ header-based fetch ก็ยังใช้ได้
+  - Files: `bn88-backend-v12/src/routes/admin/chat.ts`, `bn88-frontend-dashboard-v12/src/lib/api.ts`
+- [ ] **Phase 5 – SSE EventSource ใส่ header ไม่ได้ (เลือกแนว auth ให้ชัด).**
+  - Acceptance: SSE ใช้ token query หรือ cookie ได้อย่างใดอย่างหนึ่งแบบเสถียร
+  - Files: `bn88-backend-v12/src/mw/auth.ts`, `bn88-backend-v12/src/live.ts`, `bn88-frontend-dashboard-v12/src/lib/events.ts`
+- [ ] **Phase 6 – LINE signature ต้องใช้ raw body จริง.**
+  - Acceptance: signature ตรวจผ่านเมื่อยิง raw bytes และตกเมื่อ signature ผิด
+  - Files: `bn88-backend-v12/src/server.ts`, `bn88-backend-v12/src/routes/webhooks/line.ts`
+- [ ] **Phase 7 – Regression check สำหรับ 401/403/SSE/line-content.**
+  - Acceptance: ชุดคำสั่งตรวจ (PowerShell) ผ่านทุกข้อที่เกี่ยวข้อง
+  - Files: `bn88-backend-v12/README_DEV.md`, `bn88-backend-v12/scripts/test_line_webhook.ps1`
+- [ ] **Phase 8 – ปิดงานด้วย smoke test ทั้งระบบ (backend+frontend).**
+  - Acceptance: ล็อกอิน → ดูบอท → โหลดรูป → SSE ไม่หลุด
+  - Files: `bn88-frontend-dashboard-v12/src/pages/ChatCenter.tsx`, `bn88-frontend-dashboard-v12/src/lib/api.ts`
+
+## PowerShell Immediate Checklist (12+ commands)
+
+1. `pwsh -Command "Test-NetConnection 127.0.0.1 -Port 3000"`
+2. `pwsh -Command "curl.exe -sS http://127.0.0.1:3000/api/health"`
+3. `pwsh -Command "curl.exe -sS http://127.0.0.1:3000/api/stats"`
+4. `pwsh -Command "$r=Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/admin/auth/login -Headers @{\"x-tenant\"=\"bn9\"} -Body (@{email='admin@example.com';password='secret'} | ConvertTo-Json) -ContentType 'application/json'; $r.token"`
+5. `pwsh -Command "$TOKEN='<JWT>'; curl.exe -sS -H \"Authorization: Bearer $TOKEN\" -H \"x-tenant: bn9\" http://127.0.0.1:3000/api/admin/bots"`
+6. `pwsh -Command "$TOKEN='<JWT>'; curl.exe -sS -H \"Authorization: Bearer $TOKEN\" -H \"x-tenant: bn9\" http://127.0.0.1:3000/api/admin/bots/<botId>/secrets"`
+7. `pwsh -Command "$TOKEN='<JWT>'; curl.exe -sS -o NUL -w \"%{http_code}\" -H \"Authorization: Bearer $TOKEN\" -H \"x-tenant: bn9\" http://127.0.0.1:3000/api/admin/chat/line-content/<messageId>"`
+8. `pwsh -Command "$TOKEN='<JWT>'; curl.exe -sS -o NUL -w \"%{http_code}\" \"http://127.0.0.1:3000/api/admin/chat/line-content/<messageId>?token=$TOKEN&tenant=bn9\""`
+9. `pwsh -Command "$TOKEN='<JWT>'; curl.exe -N \"http://127.0.0.1:3000/api/live/bn9?token=$TOKEN\""`
+10. `pwsh -Command "$env:LINE_CHANNEL_SECRET='<secret>'; pwsh -File .\\bn88-backend-v12\\scripts\\test_line_webhook.ps1"`
+11. `pwsh -Command "rg -n -F \"QUERY_TOKEN_ALLOWED_PREFIXES\" bn88-backend-v12\\src\\mw\\auth.ts -S"`
+12. `pwsh -Command "rg -n -F \"requirePermission\" bn88-backend-v12\\src\\middleware\\basicAuth.ts -S"`
+13. `pwsh -Command "rg -n -F \"getLineContentUrl\" bn88-frontend-dashboard-v12\\src\\lib\\api.ts -S"`
+14. `pwsh -Command "rg -n -F \"EventSource\" bn88-frontend-dashboard-v12\\src\\lib\\events.ts -S"`
 
 ## Master Worklist Phase 0 → Phase 11
 

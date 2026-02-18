@@ -128,8 +128,16 @@ if (webhookBaseUrl) {
 }
 
 /* Workers */
-startCampaignScheduleWorker();
-startMessageWorker();
+try {
+  startCampaignScheduleWorker();
+} catch (err) {
+  console.error("[BOOT] campaign worker start failed", err);
+}
+try {
+  startMessageWorker();
+} catch (err) {
+  console.error("[BOOT] message worker start failed", err);
+}
 
 /* simple probes */
 app.get("/", (_req, res) => res.send("ok"));
@@ -313,9 +321,13 @@ app.get("/api/live/:tenant", authGuard, sseHandler);
 app.get("/api/live/metrics", metricsSseHandler);
 app.get("/metrics/stream", metricsStreamHandler);
 
-startEngagementScheduler().catch((err) =>
-  console.error("[BOOT] engagement scheduler error", err),
-);
+try {
+  startEngagementScheduler().catch((err) =>
+    console.error("[BOOT] engagement scheduler error", err),
+  );
+} catch (err) {
+  console.error("[BOOT] engagement scheduler crashed", err);
+}
 
 /* Webhooks */
 app.use("/api/webhooks/line", webhookLimiter, lineWebhookRouter);

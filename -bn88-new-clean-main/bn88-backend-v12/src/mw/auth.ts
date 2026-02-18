@@ -30,12 +30,18 @@ function isQueryTokenAllowed(req: Request): boolean {
 }
 
 function readQueryToken(req: Request): string {
-  if (!req.query?.token) return "";
-  const queryTokenRaw = req.query.token;
-  return typeof queryTokenRaw === "string"
-    ? queryTokenRaw.trim()
-    : Array.isArray(queryTokenRaw)
-      ? String(queryTokenRaw[0] ?? "").trim()
+  const q: Record<string, unknown> = (req.query ?? {}) as Record<string, unknown>;
+  const raw =
+    q.token ??
+    q.access_token ??
+    q.accessToken ??
+    q.auth_token ??
+    q.authToken ??
+    "";
+  return typeof raw === "string"
+    ? raw.trim()
+    : Array.isArray(raw)
+      ? String(raw[0] ?? "").trim()
       : "";
 }
 
@@ -143,8 +149,25 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
   }
 
   try {
-    const payload = verifyJwt<AuthPayload>(token);
-    const session = { ...payload, id: payload.sub } as AuthPayload & { id: string };
+    const payload = verifyJwt<AuthPayload & { adminId?: string; id?: string }>(
+      token,
+    );
+    const sub =
+      payload.sub ||
+      (payload as any).adminId ||
+      (payload as any).id ||
+      "";
+    const roles = Array.isArray(payload.roles)
+      ? payload.roles
+      : payload.roles
+        ? [String(payload.roles)]
+        : [];
+    const session = {
+      ...payload,
+      sub,
+      roles,
+      id: sub,
+    } as AuthPayload & { id: string };
 
     (req as any).auth = session;
     // keep alias during migration to single auth source
