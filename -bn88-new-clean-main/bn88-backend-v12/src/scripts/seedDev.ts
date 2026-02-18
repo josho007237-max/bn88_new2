@@ -24,6 +24,18 @@ async function main() {
     select: { id: true, email: true },
   });
 
+
+  // compatibility: if schema has "enabled" column, keep root admin enabled in dev
+  try {
+    await prisma.$executeRawUnsafe(
+      'UPDATE "AdminUser" SET "enabled" = 1 WHERE "id" = ? OR "email" = ?',
+      admin.id,
+      email,
+    );
+  } catch {
+    // current schema may not have enabled column
+  }
+
   // minimum RBAC for dashboard/admin APIs
   try {
     const manageBots = await prisma.permission.upsert({

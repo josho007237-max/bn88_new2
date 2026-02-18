@@ -1,40 +1,40 @@
 #requires -Version 5.1
 
 param(
-  [switch]$Kill
+  [switch]$Kill,
+  [int]$Port = 3000
 )
 
 $ErrorActionPreference = "Stop"
-$Port = 3000
 
 $listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
-$pids = @(
+$processIds = @(
   $listeners |
     Select-Object -ExpandProperty OwningProcess -ErrorAction SilentlyContinue |
     Where-Object { $_ -gt 0 } |
     Sort-Object -Unique
 )
 
-if ($pids.Count -eq 0) {
+if ($processIds.Count -eq 0) {
   Write-Host "No LISTENING TCP process found on port $Port."
   exit 0
 }
 
-if ($pids.Count -gt 1) {
+if ($processIds.Count -gt 1) {
   Write-Warning "มี dev ซ้อน: พบหลาย PID จับพอร์ต $Port"
 }
 
-foreach ($pid in $pids) {
-  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pid" -ErrorAction SilentlyContinue
+foreach ($procId in $processIds) {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
   $name = if ($proc) { [string]$proc.Name } else { "" }
   $cmd = if ($proc) { [string]$proc.CommandLine } else { "" }
 
   if ([string]::IsNullOrWhiteSpace($name)) {
-    $p = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
     $name = [string]($p?.ProcessName ?? "")
   }
 
-  Write-Host ("Port {0} -> PID {1}" -f $Port, $pid)
+  Write-Host ("Port {0} -> PID {1}" -f $Port, $procId)
   Write-Host ("Name: {0}" -f $name)
   if ([string]::IsNullOrWhiteSpace($cmd)) {
     Write-Host "CommandLine: (unavailable)"
@@ -49,9 +49,14 @@ if (-not $Kill) {
 }
 
 $failed = $false
-foreach ($pid in $pids) {
-  & taskkill.exe /PID $pid /F | Out-Null
-  if ($LASTEXITCODE -ne 0) { $failed = $true }
+foreach ($procId in $processIds) {
+  try {
+    Stop-Process -Id $procId -Force -ErrorAction Stop
+    Write-Host ("Killed PID {0}" -f $procId)
+  } catch {
+    Write-Warning ("Failed to kill PID {0}: {1}" -f $procId, $_.Exception.Message)
+    $failed = $true
+  }
 }
 
 if ($failed) {
