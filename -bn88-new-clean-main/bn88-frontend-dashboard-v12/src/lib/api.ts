@@ -542,9 +542,9 @@ function buildAuthHeaders(path?: string): HeadersInit {
 // ✅ เพิ่มอันนี้ให้มี export จริง
 /* ============================ Line Content (Image/File) ============================ */
 
-export function getLineContentPath(id: string) {
-  return `/admin/chat/line-content/${encodeURIComponent(id)}`;
-}
+    res = await fetch(fallbackUrl, { headers: { "x-tenant": ADMIN_TENANT } });
+    res = await fetch(fallbackUrl, { headers: { "x-tenant": ADMIN_TENANT } });
+        `[api] Network/CORS error while calling ${reqUrl}. Add ALLOWED_ORIGINS=http://localhost:5555 in backend .env (and include your origin). Current API_BASE=${API_BASE}.`,
 
 export function getLineContentUrl(id: string) {
   const base = API_BASE || "/api";
