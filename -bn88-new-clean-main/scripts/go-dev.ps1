@@ -67,3 +67,7 @@ Write-Host 'curl http://127.0.0.1:3000/api/health'
 Write-Host '$body = @{ email = "root@bn9.local"; password = "bn9@12345" } | ConvertTo-Json'
 Write-Host '$token = (Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Body $body).token'
 Write-Host 'Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3000/api/admin/bots" -Headers @{ Authorization = "Bearer $token"; "x-tenant" = "bn9" }'
+
+Write-Host 'tsc checks:' -ForegroundColor Green
+Write-Host 'cd bn88-backend-v12; .\node_modules\.bin\tsc.cmd -p tsconfig.json --noEmit'
+Write-Host 'cd bn88-frontend-dashboard-v12; .\node_modules\.bin\tsc.cmd -p tsconfig.json --noEmit'
