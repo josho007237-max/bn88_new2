@@ -4,55 +4,19 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$pkgPath = Join-Path $BackendPath 'package.json'
-if (-not (Test-Path -Path $pkgPath)) {
-  Write-Host "[check-env] ERROR: package.json not found at $BackendPath" -ForegroundColor Red
-  Write-Host "[check-env] Hint: cd into bn88-backend-v12 before running check:env." -ForegroundColor Yellow
-  exit 1
-}
-
-$pkgRaw = Get-Content -Path $pkgPath -Raw
-if ($pkgRaw -notmatch '"name"\s*:\s*"bn88-backend-v12"') {
-  Write-Host "[check-env] ERROR: $BackendPath is not bn88-backend-v12 (package name mismatch)." -ForegroundColor Red
-  Write-Host "[check-env] Hint: run from the backend folder or pass -BackendPath explicitly." -ForegroundColor Yellow
-  exit 1
-}
-
 $envFile = Join-Path $BackendPath '.env'
 $exampleFile = Join-Path $BackendPath '.env.example'
 
-if (-not (Test-Path -Path $envFile)) {
-  if (-not (Test-Path -Path $exampleFile)) {
-    Write-Host "[check-env] ERROR: .env missing and .env.example not found" -ForegroundColor Red
-    exit 1
-  }
-
-  Copy-Item -Path $exampleFile -Destination $envFile -Force
-  Write-Host "[check-env] CREATED: .env copied from .env.example" -ForegroundColor Yellow
+if (Test-Path $envFile) {
+  Write-Host "[check-env] OK: .env exists at $envFile" -ForegroundColor Green
+  exit 0
 }
 
-function Ensure-EnvKey {
-  param(
-    [string]$Path,
-    [string]$Key,
-    [string]$Value
-  )
-
-  $pattern = "^\s*" + [regex]::Escape($Key) + "\s*="
-  $exists = Select-String -Path $Path -Pattern $pattern -SimpleMatch:$false -Quiet
-  if ($exists) { return }
-
-  Add-Content -Path $Path -Value ("{0}={1}" -f $Key, $Value)
-  Write-Host ("[check-env] added {0}={1}" -f $Key, $Value) -ForegroundColor Cyan
+if (-not (Test-Path $exampleFile)) {
+  Write-Host "[check-env] ERROR: .env missing and .env.example not found" -ForegroundColor Red
+  exit 1
 }
 
-# required local-dev keys (append only if missing)
-Ensure-EnvKey -Path $envFile -Key 'ENABLE_ADMIN_API' -Value '1'
-Ensure-EnvKey -Path $envFile -Key 'ENABLE_DEV_ROUTES' -Value '1'
-Ensure-EnvKey -Path $envFile -Key 'JWT_SECRET' -Value 'bn9_dev_secret_change_in_production'
-Ensure-EnvKey -Path $envFile -Key 'JWT_EXPIRE' -Value '7d'
-Ensure-EnvKey -Path $envFile -Key 'NODE_ENV' -Value 'development'
-Ensure-EnvKey -Path $envFile -Key 'PORT' -Value '3000'
-
-Write-Host "[check-env] OK: .env bootstrap complete" -ForegroundColor Green
-Write-Host "[check-env] NOTE: SECRET_ENC_KEY_BN9 is kept unchanged." -ForegroundColor Green
+Copy-Item -Path $exampleFile -Destination $envFile -Force
+Write-Host "[check-env] CREATED: .env copied from .env.example" -ForegroundColor Yellow
+Write-Host "[check-env] Please edit .env values before running dev." -ForegroundColor Yellow

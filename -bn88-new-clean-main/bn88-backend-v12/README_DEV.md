@@ -1,20 +1,14 @@
 # Dev Notes
 
-## Deterministic dev auth flow (`bn88-backend-v12`)
+## Deterministic dev auth flow (bn88-backend-v12)
 
-### 0) Confirm you're in the correct project folder
 ```powershell
 cd .\-bn88-new-clean-main\bn88-backend-v12
-if (!(Test-Path .\package.json)) { throw "package.json not found - wrong folder" }
-if ((Get-Content .\package.json -Raw) -notmatch '"name"\s*:\s*"bn88-backend-v12"') { throw "wrong package name - expected bn88-backend-v12" }
-```
-
-### 1) Create `.env` if missing
-```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-### REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
+ codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
+## REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
 `SECRET_ENC_KEY_BN9` is required by `src/config.ts` (`z.string().length(32)`).
 
 ```powershell
@@ -25,26 +19,13 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 ```
 
-### 2) Quick env checks (safe in PowerShell)
-
-Verify `dotenv` resolves from the backend folder:
-```powershell
-node -e "console.log(require.resolve('dotenv'))"
-```
-
-Verify required keys exist (without dotenv):
-```powershell
-Get-Content .env | Select-String '^SECRET_ENC_KEY_BN9='
-Get-Content .env | Select-String '^ENABLE_ADMIN_API='
-Get-Content .env | Select-String '^ENABLE_DEV_ROUTES='
-```
-
-### 3) Prepare DB schema
+ main
+### 1) Prepare DB schema
 ```powershell
 npx prisma db push
 ```
 
-### 4) Seed deterministic dev admin + RBAC
+### 2) Seed deterministic dev admin + RBAC
 ```powershell
 npm run seed:dev
 ```
@@ -55,17 +36,12 @@ Defaults from `seedDev.ts`:
 - tenant: `bn9`
 - RBAC: includes `manageBots`
 
-### 5) Start backend
+### 3) Start backend
 ```powershell
 npm run dev
 ```
 
-### 6) Health check
-```powershell
-irm -Method Get -Uri "http://127.0.0.1:3000/api/health"
-```
-
-### 7) Login + call `/api/admin/bots`
+### 4) Login + call `/api/admin/bots`
 
 PowerShell (`irm`):
 ```powershell
@@ -79,3 +55,16 @@ PowerShell (`curl.exe`):
 $token = (curl.exe -sS -X POST "http://127.0.0.1:3000/api/admin/auth/login" -H "Content-Type: application/json" -d '{"email":"root@bn9.local","password":"bn9@12345"}' | ConvertFrom-Json).token
 curl.exe -sS "http://127.0.0.1:3000/api/admin/bots" -H "Authorization: Bearer $token" -H "x-tenant: bn9"
 ```
+
+
+## Prisma CLI quick start (no manual env export)
+```powershell
+cd .\-bn88-new-clean-main\bn88-backend-v12
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+npx prisma db push
+npx tsx src/scripts/seedDev.ts
+```
+
+Defaults from `seedDev.ts`:
+- email: `root@bn9.local`
+- password: `bn9@12345`

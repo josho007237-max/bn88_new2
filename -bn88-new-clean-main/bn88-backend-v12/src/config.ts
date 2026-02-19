@@ -2,9 +2,6 @@
 import "dotenv/config";
 import { z } from "zod";
 
-const defaultEnableAdminApi =
-  (process.env.NODE_ENV || "development") === "development" ? "1" : "0";
-
 /** ตรวจ ENV ที่ระบบต้องใช้ */
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -19,8 +16,8 @@ const EnvSchema = z.object({
   SECRET_ENC_KEY_BN9: z.string().length(32, { message: "SECRET_ENC_KEY_BN9 must be 32 characters long" }),
 
   // CORS / Admin API
-  ALLOWED_ORIGINS: z.string().default("http://localhost:5555,http://127.0.0.1:5555,http://localhost:5173"),
-  ENABLE_ADMIN_API: z.enum(["1", "0"]).default(defaultEnableAdminApi),
+  ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
+  ENABLE_ADMIN_API: z.enum(["1", "0"]).default("0"),
 
   // OpenAI (optional)
   OPENAI_API_KEY: z.string().optional(),
@@ -56,10 +53,6 @@ if (!parsed.success) {
   process.exit(1);
 }
 const env = parsed.data;
-
-if (env.NODE_ENV === "development" && process.env.ENABLE_ADMIN_API == null) {
-  console.warn("[BOOT][DEV] ENABLE_ADMIN_API not set; defaulting to 1 in development");
-}
 
 if (!env.OPENAI_API_KEY) {
   console.warn("[BOOT][WARN] OPENAI_API_KEY is not set. AI replies will be skipped.");
