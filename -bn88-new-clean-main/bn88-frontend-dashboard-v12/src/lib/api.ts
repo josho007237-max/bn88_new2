@@ -517,6 +517,9 @@ export function withTokenAndTenant(url?: string | null, tenant?: string): string
   const full = `${base}${sep}tenant=${encodeURIComponent(tenant)}`;
   return hash ? `${full}#${hash}` : full;
 }
+function getLineContentPath(id: string) {
+  return `/admin/chat/line-content/${encodeURIComponent(id)}`;
+}
 
 export function getApiBase() {
   return API_BASE || "/api";
@@ -534,9 +537,6 @@ export const API = axios.create({
 // ✅ เพิ่มอันนี้ให้มี export จริง
 /* ============================ Line Content (Image/File) ============================ */
 
-function getLineContentPath(id: string) {
-  return `/admin/chat/line-content/${encodeURIComponent(id)}`;
-}
 
 export function getLineContentUrl(id: string) {
   const base = API_BASE || "/api";
