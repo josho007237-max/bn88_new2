@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://localhost:3000"
-$tenant = $Env:TENANT ?? "bn9"
+$tenant = if ([string]::IsNullOrWhiteSpace($Env:TENANT)) { "bn9" } else { $Env:TENANT.Trim() }
 $adminEmail = $Env:ADMIN_EMAIL
 $adminPassword = $Env:ADMIN_PASSWORD
 $steps = @()
