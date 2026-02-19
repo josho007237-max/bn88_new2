@@ -42,3 +42,16 @@ PowerShell (`curl.exe`):
 $token = (curl.exe -sS -X POST "http://127.0.0.1:3000/api/admin/auth/login" -H "Content-Type: application/json" -d '{"email":"root@bn9.local","password":"bn9@12345"}' | ConvertFrom-Json).token
 curl.exe -sS "http://127.0.0.1:3000/api/admin/bots" -H "Authorization: Bearer $token" -H "x-tenant: bn9"
 ```
+
+
+## Prisma CLI quick start (no manual env export)
+```powershell
+cd .\-bn88-new-clean-main\bn88-backend-v12
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+npx prisma db push
+npx tsx src/scripts/seedDev.ts
+```
+
+Defaults from `seedDev.ts`:
+- email: `root@bn9.local`
+- password: `bn9@12345`

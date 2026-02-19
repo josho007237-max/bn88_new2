@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
 
 $rows = @()
 $lines = @(netstat -ano -p tcp)
@@ -30,12 +31,33 @@ foreach ($line in $lines) {
   [void][int]::TryParse($pidText, [ref]$procId)
   if ($procId -le 0) { continue }
 
+
+$listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+$processIds = @(
+  $listeners |
+    Select-Object -ExpandProperty OwningProcess -ErrorAction SilentlyContinue |
+    Where-Object { $_ -gt 0 } |
+    Sort-Object -Unique
+)
+
+if ($processIds.Count -eq 0) {
+  Write-Host "No LISTENING TCP process found on port $Port."
+  exit 0
+}
+
+if ($processIds.Count -gt 1) {
+  Write-Warning "มี dev ซ้อน: พบหลาย PID จับพอร์ต $Port"
+}
+
+foreach ($procId in $processIds) {
+main
   $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
   $name = if ($proc) { [string]$proc.Name } else { "" }
   $cmd = if ($proc) { [string]$proc.CommandLine } else { "" }
 
   if ([string]::IsNullOrWhiteSpace($name)) {
     $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
     if ($p) { $name = [string]$p.ProcessName }
   }
 
@@ -44,6 +66,17 @@ foreach ($line in $lines) {
     PID         = $procId
     ProcessName = $name
     CommandLine = $cmd
+=======
+    $name = [string]($p?.ProcessName ?? "")
+  }
+
+  Write-Host ("Port {0} -> PID {1}" -f $Port, $procId)
+  Write-Host ("Name: {0}" -f $name)
+  if ([string]::IsNullOrWhiteSpace($cmd)) {
+    Write-Host "CommandLine: (unavailable)"
+  } else {
+    Write-Host ("CommandLine: {0}" -f $cmd)
+main
   }
 }
 
@@ -61,8 +94,12 @@ if (-not $Kill) {
 }
 
 $failed = $false
+codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
 foreach ($row in $rows) {
   $procId = [int]$row.PID
+=======
+foreach ($procId in $processIds) {
+main
   try {
     Stop-Process -Id $procId -Force -ErrorAction Stop
     Write-Host ("Killed PID {0}" -f $procId)
