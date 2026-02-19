@@ -537,6 +537,10 @@ export const API = axios.create({
 // ✅ เพิ่มอันนี้ให้มี export จริง
 /* ============================ Line Content (Image/File) ============================ */
 
+function getLineContentPath(id: string) {
+  return `/admin/chat/line-content/${encodeURIComponent(id)}`;
+}
+
 export function getLineContentUrl(id: string) {
   const base = API_BASE || "/api";
   return withTokenAndTenant(`${base}${getLineContentPath(id)}`, TENANT);
