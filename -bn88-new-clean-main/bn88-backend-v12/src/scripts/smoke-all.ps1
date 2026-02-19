@@ -1,162 +1,113 @@
 param(
-  [string]$BaseUrl = 'http://127.0.0.1:3000',
-  [string]$Email = '',
-  [string]$Password = '',
-  [string]$Tenant = 'bn9',
-  [switch]$ExpectSse
+  [string]$BaseUrl = "http://127.0.0.1:3000",
+  [string]$Tenant  = "bn9",
+  [string]$Email   = "root@bn9.local",
+  [string]$Password= "bn9@12345",
+  [switch]$ExpectSse,
+  [int]$SseMaxTimeSec = 5
 )
 
-$ErrorActionPreference = 'Stop'
-$steps = @()
-$allPassed = $true
-$corePassed = $true
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-function Write-Step([string]$Name, [bool]$Passed, [string]$Message, [bool]$Required = $false) {
-  $status = if ($Passed) { 'PASS' } else { 'FAIL' }
-  Write-Host "$Name : $status - $Message"
-  if (-not $Passed) {
-    $global:allPassed = $false
-    if ($Required) { $global:corePassed = $false }
-  }
-  $script:steps += [pscustomobject]@{ Name = $Name; Passed = $Passed; Message = $Message }
-}
+$script:Failed = $false
 
-function Write-WarnStep([string]$Name, [string]$Message) {
-  Write-Host "$Name : WARN - $Message" -ForegroundColor Yellow
-  $script:steps += [pscustomobject]@{ Name = $Name; Passed = $null; Message = "WARN: $Message" }
-}
-
-function Get-StatusCodeFromError($Err) {
-  $resp = $Err.Exception.Response
-  if ($resp -and $resp.StatusCode) { return [int]$resp.StatusCode }
-  return $null
-}
-
-Write-Host '=== smoke-all checks ==='
-
-try {
-  $health = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/health" -UseBasicParsing
-  if ($null -eq $health) {
-    Write-Step '/api/health' $false 'response is null' $true
-  } elseif ($health.ok -ne $true -or $health.adminApi -ne $true) {
-    Write-Step '/api/health' $false "ok=$($health.ok), adminApi=$($health.adminApi)" $true
+function Write-Step([string]$name, [bool]$ok, [string]$detail="") {
+  if ($ok) {
+    Write-Host ("✅ {0}" -f $name) -ForegroundColor Green
   } else {
-    Write-Step '/api/health' $true 'ok=true adminApi=true' $true
+    Write-Host ("❌ {0} :: {1}" -f $name, $detail) -ForegroundColor Red
+    $script:Failed = $true
   }
-} catch {
-  Write-Step '/api/health' $false "$_" $true
 }
 
-if ([string]::IsNullOrWhiteSpace($Email)) { $Email = $Env:ADMIN_EMAIL }
-if ([string]::IsNullOrWhiteSpace($Password)) { $Password = $Env:ADMIN_PASSWORD }
+function Write-Warn([string]$name, [string]$detail="") {
+  Write-Host ("⚠️ {0} :: {1}" -f $name, $detail) -ForegroundColor Yellow
+}
 
+function Assert([bool]$cond, [string]$msg) {
+  if (-not $cond) { throw $msg }
+}
+
+function Try-Step([string]$name, [scriptblock]$fn, [switch]$NonFatal) {
+  try {
+    & $fn
+    Write-Step $name $true
+  } catch {
+    $m = $_.Exception.Message
+    if ($NonFatal) { Write-Warn $name $m }
+    else { Write-Step $name $false $m }
+  }
+}
+
+Write-Host "`n# smoke-all.ps1" -ForegroundColor Cyan
+Write-Host ("BaseUrl={0} Tenant={1}" -f $BaseUrl, $Tenant) -ForegroundColor DarkCyan
+
+# 1) Health
+Try-Step "health (/api/health)" {
+  $h = Invoke-RestMethod "$BaseUrl/api/health"
+  Assert ($h.ok -eq $true) "health.ok != true"
+  Assert ($h.adminApi -eq $true) "health.adminApi != true (ENABLE_ADMIN_API=1?)"
+} 
+
+# 2) Login -> token
 $token = $null
-if ([string]::IsNullOrWhiteSpace($Email) -or [string]::IsNullOrWhiteSpace($Password)) {
-  Write-Step 'admin login' $false 'ADMIN_EMAIL/ADMIN_PASSWORD missing' $true
+Try-Step "login (/api/admin/auth/login)" {
+  $body = @{ email=$Email; password=$Password } | ConvertTo-Json
+  $r = Invoke-RestMethod -Method Post "$BaseUrl/api/admin/auth/login" -Body $body -ContentType "application/json"
+  $token = $r.token
+  Assert ([string]::IsNullOrWhiteSpace($token) -eq $false) "missing token"
+  Assert ($token.Length -gt 50) ("token too short len={0}" -f $token.Length)
+  Write-Host ("tokenLen={0}" -f $token.Length) -ForegroundColor DarkGray
+}
+
+# 3) Bots
+$bots = $null
+Try-Step "bots (/api/admin/bots)" {
+  Assert ($token) "token is null (login failed?)"
+  $bots = Invoke-RestMethod "$BaseUrl/api/admin/bots" -Headers @{ Authorization="Bearer $token"; "x-tenant"=$Tenant }
+  Assert ($bots.ok -eq $true) "bots.ok != true"
+  Assert ($bots.items.Count -gt 0) "bots.items empty"
+  Write-Host ("botsCount={0}" -f $bots.items.Count) -ForegroundColor DarkGray
+}
+
+# 4) SSE (optional; default WARN เพราะตอนนี้ยังติด auth)
+Try-Step "sse (/api/live/:tenant)" {
+  Assert ($token) "token is null"
+  $enc = [uri]::EscapeDataString($token)
+  $url = "$BaseUrl/api/live/$Tenant?token=$enc"
+  $curl = (Get-Command curl.exe -ErrorAction Stop).Source
+
+  # try without x-tenant first (FE style)
+  $out = & $curl "-sS" "-i" "-N" $url "--max-time" "$SseMaxTimeSec" 2>&1 | Out-String
+  if ($out -match "HTTP/1\.1 200" -and $out -match "text/event-stream") {
+    return
+  }
+
+  # retry with x-tenant header (debug style)
+  $out2 = & $curl "-sS" "-i" "-N" "-H" ("x-tenant: {0}" -f $Tenant) $url "--max-time" "$SseMaxTimeSec" 2>&1 | Out-String
+  if ($out2 -match "HTTP/1\.1 200" -and $out2 -match "text/event-stream") {
+    Write-Warn "sse retry needed" "works only when x-tenant header is present (FE EventSource can't send headers)"
+    return
+  }
+
+  throw ("SSE not 200. lastResponse=" + (($out2.Trim() | Select-Object -First 1)))
+} -NonFatal:(!$ExpectSse)
+
+# 5) LINE webhook route exists? (POST should NOT be 404)
+Try-Step "line webhook mounted (POST /api/webhooks/line)" {
+  $curl = (Get-Command curl.exe -ErrorAction Stop).Source
+  $out = & $curl "-sS" "-i" "-X" "POST" "$BaseUrl/api/webhooks/line" "-H" "Content-Type: application/json" "-d" "{}" "--max-time" "5" 2>&1 | Out-String
+
+  # route exists: status often 400/401/500 (signature missing / env missing) BUT not 404
+  Assert ($out -notmatch "HTTP/1\.1 404") "webhook returned 404 (route not mounted)"
+} -NonFatal
+
+Write-Host ""
+if ($script:Failed) {
+  Write-Host "SMOKE RESULT: FAIL" -ForegroundColor Red
+  exit 1
 } else {
-  try {
-    $body = @{ email = $Email; password = $Password } | ConvertTo-Json -Compress
-    $login = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/admin/auth/login" -ContentType 'application/json' -Body $body -UseBasicParsing
-    $token = $login.token
-    if (-not $token) { $token = $login.accessToken }
-    $tokenLen = if ($token) { $token.Length } else { 0 }
-    if ([string]::IsNullOrWhiteSpace($token) -or $tokenLen -le 50) {
-      Write-Step 'admin login' $false "tokenLen=$tokenLen" $true
-      $token = $null
-    } else {
-      Write-Step 'admin login' $true "tokenLen=$tokenLen" $true
-    }
-  } catch {
-    Write-Step 'admin login' $false "$_" $true
-    $token = $null
-  }
-}
-
-if ($token) {
-  try {
-    $headers = @{ Authorization = "Bearer $token"; 'x-tenant' = $Tenant }
-    $bots = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/admin/bots" -Headers $headers -UseBasicParsing
-    $itemCount = if ($bots -and $bots.items) { $bots.items.Count } else { 0 }
-    if ($bots.ok -eq $true -and $itemCount -gt 0) {
-      Write-Step '/api/admin/bots' $true "ok=true items=$itemCount" $true
-    } else {
-      Write-Step '/api/admin/bots' $false "ok=$($bots.ok) items=$itemCount" $true
-    }
-  } catch {
-    Write-Step '/api/admin/bots' $false "$_" $true
-  }
-
-  try {
-    $curlCmd = if (Get-Command curl.exe -ErrorAction SilentlyContinue) { 'curl.exe' } elseif (Get-Command curl -ErrorAction SilentlyContinue) { 'curl' } else { $null }
-    if (-not $curlCmd) {
-      if ($ExpectSse) {
-        Write-Step 'SSE /api/live' $false 'curl not found'
-      } else {
-        Write-WarnStep 'SSE /api/live' 'curl not found'
-      }
-    } else {
-      $sseOutput = & $curlCmd -i -N --max-time 5 "$BaseUrl/api/live/$Tenant?token=$token" 2>&1
-      $sseText = ($sseOutput | Out-String)
-      if ($sseText -match 'HTTP/\S+\s+200') {
-        Write-Step 'SSE /api/live' $true 'HTTP 200'
-      } elseif ($sseText -match 'HTTP/\S+\s+401' -or $sseText -match 'HTTP/\S+\s+403') {
-        if ($ExpectSse) {
-          Write-Step 'SSE /api/live' $false 'SSE auth pending'
-        } else {
-          Write-WarnStep 'SSE /api/live' 'SSE auth pending'
-        }
-      } else {
-        if ($ExpectSse) {
-          Write-Step 'SSE /api/live' $false 'unexpected SSE response'
-        } else {
-          Write-WarnStep 'SSE /api/live' 'unexpected SSE response'
-        }
-      }
-    }
-  } catch {
-    if ($ExpectSse) {
-      Write-Step 'SSE /api/live' $false "$_"
-    } else {
-      Write-WarnStep 'SSE /api/live' "$_"
-    }
-  }
-} else {
-  Write-Step '/api/admin/bots' $false 'skipped (no token)' $true
-  if ($ExpectSse) {
-    Write-Step 'SSE /api/live' $false 'skipped (no token)'
-  } else {
-    Write-WarnStep 'SSE /api/live' 'skipped (no token)'
-  }
-}
-
-try {
-  $dummyBody = '{}' 
-  $null = Invoke-WebRequest -Method Post -Uri "$BaseUrl/api/webhooks/line" -Body $dummyBody -ContentType 'application/json' -UseBasicParsing
-  Write-Step '/api/webhooks/line' $true 'route exists (non-404)'
-} catch {
-  $statusCode = Get-StatusCodeFromError $_
-  if ($statusCode -eq 404) {
-    Write-Step '/api/webhooks/line' $false '404 route missing'
-  } elseif ($statusCode) {
-    Write-Step '/api/webhooks/line' $true "route exists (HTTP $statusCode)"
-  } else {
-    Write-WarnStep '/api/webhooks/line' "unable to determine status: $_"
-  }
-}
-
-Write-Host "`n=== Summary ==="
-foreach ($s in $steps) {
-  if ($null -eq $s.Passed) {
-    Write-Host "$($s.Name): $($s.Message)"
-  } else {
-    $stat = if ($s.Passed) { 'PASS' } else { 'FAIL' }
-    Write-Host "$($s.Name): $stat - $($s.Message)"
-  }
-}
-
-if ($corePassed) {
-  Write-Host 'All required checks passed'
+  Write-Host "SMOKE RESULT: PASS (SSE/webhook may be WARN)" -ForegroundColor Green
   exit 0
 }
-Write-Host 'Required checks failed (health/login/bots)'
-exit 1
