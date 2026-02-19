@@ -7,6 +7,7 @@ cd .\-bn88-new-clean-main\bn88-backend-v12
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
+ codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
 ## REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
 `SECRET_ENC_KEY_BN9` is required by `src/config.ts` (`z.string().length(32)`).
 
@@ -18,6 +19,8 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 ```
 
+=======
+ main
 ### 1) Prepare DB schema
 ```powershell
 npx prisma db push
@@ -53,3 +56,16 @@ PowerShell (`curl.exe`):
 $token = (curl.exe -sS -X POST "http://127.0.0.1:3000/api/admin/auth/login" -H "Content-Type: application/json" -d '{"email":"root@bn9.local","password":"bn9@12345"}' | ConvertFrom-Json).token
 curl.exe -sS "http://127.0.0.1:3000/api/admin/bots" -H "Authorization: Bearer $token" -H "x-tenant: bn9"
 ```
+
+
+## Prisma CLI quick start (no manual env export)
+```powershell
+cd .\-bn88-new-clean-main\bn88-backend-v12
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+npx prisma db push
+npx tsx src/scripts/seedDev.ts
+```
+
+Defaults from `seedDev.ts`:
+- email: `root@bn9.local`
+- password: `bn9@12345`
