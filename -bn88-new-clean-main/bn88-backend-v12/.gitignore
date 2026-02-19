@@ -15,6 +15,9 @@ prisma/*.db-journal
 
 # Env secrets
 .env
+.env.*
 .env.local
 .env.*.local
 !.env.example
+logs/
+prisma/__write_test.txt

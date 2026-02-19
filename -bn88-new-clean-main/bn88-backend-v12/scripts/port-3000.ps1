@@ -6,6 +6,32 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+ codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
+
+$rows = @()
+$lines = @(netstat -ano -p tcp)
+
+foreach ($line in $lines) {
+  $trim = ($line | Out-String).Trim()
+  if (-not $trim) { continue }
+  if ($trim -notmatch '^\s*TCP\s+') { continue }
+  if ($trim -notmatch ':\d+\s+') { continue }
+
+  $parts = $trim -split '\s+'
+  if ($parts.Count -lt 5) { continue }
+
+  $localAddress = $parts[1]
+  $state = $parts[3]
+  $pidText = $parts[4]
+
+  if ($state -ne 'LISTENING') { continue }
+  if ($localAddress -notmatch ":$Port$") { continue }
+
+  $procId = 0
+  [void][int]::TryParse($pidText, [ref]$procId)
+  if ($procId -le 0) { continue }
+
+
 codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
 
 $rows = @()
@@ -51,12 +77,23 @@ if ($processIds.Count -gt 1) {
 
 foreach ($procId in $processIds) {
 main
+ main
   $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
   $name = if ($proc) { [string]$proc.Name } else { "" }
   $cmd = if ($proc) { [string]$proc.CommandLine } else { "" }
 
   if ([string]::IsNullOrWhiteSpace($name)) {
     $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+ codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
+    if ($p) { $name = [string]$p.ProcessName }
+  }
+
+  $rows += [pscustomobject]@{
+    Port        = $Port
+    PID         = $procId
+    ProcessName = $name
+    CommandLine = $cmd
+=======
 codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
     if ($p) { $name = [string]$p.ProcessName }
   }
@@ -77,6 +114,7 @@ codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
   } else {
     Write-Host ("CommandLine: {0}" -f $cmd)
 main
+main
   }
 }
 
@@ -94,12 +132,17 @@ if (-not $Kill) {
 }
 
 $failed = $false
+ codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
+foreach ($row in $rows) {
+  $procId = [int]$row.PID
+=======
 codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
 foreach ($row in $rows) {
   $procId = [int]$row.PID
 =======
 foreach ($procId in $processIds) {
 main
+ main
   try {
     Stop-Process -Id $procId -Force -ErrorAction Stop
     Write-Host ("Killed PID {0}" -f $procId)

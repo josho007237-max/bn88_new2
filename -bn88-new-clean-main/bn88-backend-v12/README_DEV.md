@@ -7,6 +7,20 @@ cd .\-bn88-new-clean-main\bn88-backend-v12
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
+ codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
+## REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
+`SECRET_ENC_KEY_BN9` is required by `src/config.ts` (`z.string().length(32)`).
+
+```powershell
+# Option A: use the dev placeholder from .env.example (already 32 chars)
+# SECRET_ENC_KEY_BN9=0123456789abcdef0123456789abcdef
+
+# Option B: generate a new 32-char key with Node crypto
+node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+```
+
+=======
+ main
 ### 1) Prepare DB schema
 ```powershell
 npx prisma db push
