@@ -423,9 +423,13 @@ function trimSlash(s: string) {
 
 // IMPORTANT: baseURL ควรชี้ไปที่ "/api" (หรือ "http://localhost:3000/api")
 export const API_BASE = trimSlash(
+ codex/fix-cloudflared-tunnel-command-syntax-ozmbti
+  (import.meta as any).env?.VITE_API_BASE || "https://api.bn9.app/api"
+=======
   (import.meta as any).env?.VITE_API_BASE ||
     (import.meta as any).env?.VITE_ADMIN_API_BASE ||
     "https://api.bn9.app/api"
+ main
 );
 
 export const TENANT =
