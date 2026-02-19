@@ -110,4 +110,8 @@ if ($script:Failed) {
 } else {
   Write-Host "SMOKE RESULT: PASS (SSE/webhook may be WARN)" -ForegroundColor Green
   exit 0
+ codex/fix-prisma-initialization-error-in-bn88-backend-v12-m2uko7
 }
+=======
+}
+ main
