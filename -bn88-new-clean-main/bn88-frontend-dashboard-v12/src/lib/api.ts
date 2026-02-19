@@ -517,7 +517,7 @@ export function withTokenAndTenant(url?: string | null, tenant?: string): string
   const full = `${base}${sep}tenant=${encodeURIComponent(tenant)}`;
   return hash ? `${full}#${hash}` : full;
 }
-function getLineContentPath(id: string) {
+function getLineContentPath(id: string): string {
   return `/admin/chat/line-content/${encodeURIComponent(id)}`;
 }
 
