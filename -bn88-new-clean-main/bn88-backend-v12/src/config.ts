@@ -2,6 +2,9 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const defaultEnableAdminApi =
+  (process.env.NODE_ENV || "development") === "development" ? "1" : "0";
+
 /** ตรวจ ENV ที่ระบบต้องใช้ */
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -17,7 +20,7 @@ const EnvSchema = z.object({
 
   // CORS / Admin API
   ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
-  ENABLE_ADMIN_API: z.enum(["1", "0"]).default("0"),
+  ENABLE_ADMIN_API: z.enum(["1", "0"]).default(defaultEnableAdminApi),
 
   // OpenAI (optional)
   OPENAI_API_KEY: z.string().optional(),
@@ -41,9 +44,22 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error("[INVALID ENV]", parsed.error.format());
+  const secretIssue = parsed.error.issues.find(
+    (issue) => issue.path.join(".") === "SECRET_ENC_KEY_BN9",
+  );
+  if (secretIssue) {
+    console.error(
+      "[INVALID ENV][HINT] SECRET_ENC_KEY_BN9 must be exactly 32 chars. " +
+        "Run: node ./scripts/gen-dev-secret-key.mjs and set the value in .env",
+    );
+  }
   process.exit(1);
 }
 const env = parsed.data;
+
+if (env.NODE_ENV === "development" && process.env.ENABLE_ADMIN_API == null) {
+  console.warn("[BOOT][DEV] ENABLE_ADMIN_API not set; defaulting to 1 in development");
+}
 
 if (!env.OPENAI_API_KEY) {
   console.warn("[BOOT][WARN] OPENAI_API_KEY is not set. AI replies will be skipped.");

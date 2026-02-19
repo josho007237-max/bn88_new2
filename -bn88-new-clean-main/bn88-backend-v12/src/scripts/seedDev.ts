@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.DEV_ADMIN_EMAIL || "admin@bn9.local";
-  const password = process.env.DEV_ADMIN_PASSWORD || "admin123";
+  const email = process.env.DEV_ADMIN_EMAIL || "root@bn9.local";
+  const password = process.env.DEV_ADMIN_PASSWORD || "bn9@12345";
   const tenant = process.env.TENANT_DEFAULT || "bn9";
 
   const hash = await bcrypt.hash(password, 10);
@@ -23,6 +23,20 @@ async function main() {
     create: { email, password: hash },
     select: { id: true, email: true },
   });
+
+
+  // compatibility: if schema has "enabled" column, keep root admin enabled in dev
+  try {
+    const adminUserModel = (prisma as any).adminUser;
+    if (adminUserModel?.update) {
+      await adminUserModel.update({
+        where: { id: admin.id },
+        data: { enabled: true },
+      });
+    }
+  } catch {
+    // current schema may not have enabled column
+  }
 
   // minimum RBAC for dashboard/admin APIs
   try {
