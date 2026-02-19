@@ -7,9 +7,46 @@
  * - มี graceful shutdown ที่ลงทะเบียนครั้งเดียว
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 const isDev = process.env.NODE_ENV !== "production";
+const BACKEND_ROOT = path.resolve(__dirname, "../..");
+
+function resolveSqliteFilePath(urlRaw?: string): string | null {
+  const url = String(urlRaw || "").trim();
+  if (!url.toLowerCase().startsWith("file:")) return null;
+
+  const withoutScheme = url.slice(5).split("?")[0].trim();
+  if (!withoutScheme || withoutScheme == ":memory:") return null;
+
+  if (path.isAbsolute(withoutScheme)) {
+    return path.normalize(withoutScheme);
+  }
+
+  return path.resolve(BACKEND_ROOT, withoutScheme);
+}
+
+function ensureSqliteFileReady() {
+  const sqlitePath = resolveSqliteFilePath(process.env.DATABASE_URL);
+  if (!sqlitePath) return;
+
+  const dir = path.dirname(sqlitePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`[prisma] created sqlite dir: ${dir}`);
+  }
+
+  if (!fs.existsSync(sqlitePath) && isDev) {
+    fs.closeSync(fs.openSync(sqlitePath, "a"));
+    console.log(`[prisma] created sqlite file: ${sqlitePath}`);
+  }
+
+  console.log(`[prisma] sqlite path: ${sqlitePath}`);
+}
+
+ensureSqliteFileReady();
 
 /**
  * ประกาศ global สำหรับกันซ้ำ (เฉพาะ runtime Node.js)

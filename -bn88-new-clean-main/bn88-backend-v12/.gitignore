@@ -18,3 +18,5 @@ prisma/*.db-journal
 .env.local
 .env.*.local
 !.env.example
+logs/
+prisma/__write_test.txt

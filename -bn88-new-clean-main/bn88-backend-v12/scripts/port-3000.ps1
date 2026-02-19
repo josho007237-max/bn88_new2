@@ -1,57 +1,75 @@
 #requires -Version 5.1
 
 param(
-  [switch]$Kill
+  [switch]$Kill,
+  [int]$Port = 3000
 )
 
 $ErrorActionPreference = "Stop"
-$Port = 3000
 
-$listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
-$pids = @(
-  $listeners |
-    Select-Object -ExpandProperty OwningProcess -ErrorAction SilentlyContinue |
-    Where-Object { $_ -gt 0 } |
-    Sort-Object -Unique
-)
+$rows = @()
+$lines = @(netstat -ano -p tcp)
 
-if ($pids.Count -eq 0) {
-  Write-Host "No LISTENING TCP process found on port $Port."
-  exit 0
-}
+foreach ($line in $lines) {
+  $trim = ($line | Out-String).Trim()
+  if (-not $trim) { continue }
+  if ($trim -notmatch '^\s*TCP\s+') { continue }
+  if ($trim -notmatch ':\d+\s+') { continue }
 
-if ($pids.Count -gt 1) {
-  Write-Warning "มี dev ซ้อน: พบหลาย PID จับพอร์ต $Port"
-}
+  $parts = $trim -split '\s+'
+  if ($parts.Count -lt 5) { continue }
 
-foreach ($pid in $pids) {
-  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pid" -ErrorAction SilentlyContinue
+  $localAddress = $parts[1]
+  $state = $parts[3]
+  $pidText = $parts[4]
+
+  if ($state -ne 'LISTENING') { continue }
+  if ($localAddress -notmatch ":$Port$") { continue }
+
+  $procId = 0
+  [void][int]::TryParse($pidText, [ref]$procId)
+  if ($procId -le 0) { continue }
+
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
   $name = if ($proc) { [string]$proc.Name } else { "" }
   $cmd = if ($proc) { [string]$proc.CommandLine } else { "" }
 
   if ([string]::IsNullOrWhiteSpace($name)) {
-    $p = Get-Process -Id $pid -ErrorAction SilentlyContinue
-    $name = [string]($p?.ProcessName ?? "")
+    $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+    if ($p) { $name = [string]$p.ProcessName }
   }
 
-  Write-Host ("Port {0} -> PID {1}" -f $Port, $pid)
-  Write-Host ("Name: {0}" -f $name)
-  if ([string]::IsNullOrWhiteSpace($cmd)) {
-    Write-Host "CommandLine: (unavailable)"
-  } else {
-    Write-Host ("CommandLine: {0}" -f $cmd)
+  $rows += [pscustomobject]@{
+    Port        = $Port
+    PID         = $procId
+    ProcessName = $name
+    CommandLine = $cmd
   }
-  Write-Host ""
 }
+
+$rows = @($rows | Sort-Object PID -Unique)
+
+if ($rows.Count -eq 0) {
+  Write-Host "No LISTENING TCP process found on port $Port."
+  exit 0
+}
+
+$rows | Format-Table -AutoSize Port, PID, ProcessName, CommandLine
 
 if (-not $Kill) {
   exit 0
 }
 
 $failed = $false
-foreach ($pid in $pids) {
-  & taskkill.exe /PID $pid /F | Out-Null
-  if ($LASTEXITCODE -ne 0) { $failed = $true }
+foreach ($row in $rows) {
+  $procId = [int]$row.PID
+  try {
+    Stop-Process -Id $procId -Force -ErrorAction Stop
+    Write-Host ("Killed PID {0}" -f $procId)
+  } catch {
+    Write-Warning ("Failed to kill PID {0}: {1}" -f $procId, $_.Exception.Message)
+    $failed = $true
+  }
 }
 
 if ($failed) {
