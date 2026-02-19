@@ -19,7 +19,7 @@ const EnvSchema = z.object({
   SECRET_ENC_KEY_BN9: z.string().length(32, { message: "SECRET_ENC_KEY_BN9 must be 32 characters long" }),
 
   // CORS / Admin API
-  ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
+  ALLOWED_ORIGINS: z.string().default("http://localhost:5555,http://127.0.0.1:5555,http://localhost:5173"),
   ENABLE_ADMIN_API: z.enum(["1", "0"]).default(defaultEnableAdminApi),
 
   // OpenAI (optional)

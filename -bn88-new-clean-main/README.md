@@ -53,8 +53,8 @@ cd ../bn88-frontend-dashboard-v12 && npm run dev
 
 ## Default Ports
 
-- Backend API: `http://localhost:3000`
-- Frontend Dashboard: `http://localhost:5555`
+- Backend API: `http://localhost:3000` (local also reachable as `http://127.0.0.1:3000`)
+- Frontend Dashboard: `http://localhost:5555` (local also reachable as `http://127.0.0.1:5555`)
 - LINE Engagement Platform: `http://localhost:8080`
 
 ## Documentation
