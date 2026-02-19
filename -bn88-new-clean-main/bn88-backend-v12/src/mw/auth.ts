@@ -126,6 +126,7 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
   }
   const requestId = getRequestId(req);
   const DEBUG_AUTH_LOG = process.env.DEBUG_AUTH === "1";
+  const isLiveRequest = isLivePath(req);
   const { token, raw, source, queryProvided, queryAllowed } = getToken(req);
   const hasAuthHeader = source === "header";
   const authHeaderPrefix = hasAuthHeader ? raw.split(/\s+/)[0] : undefined;
@@ -135,7 +136,15 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
     reason: string,
     extra: Record<string, unknown> = {}
   ) => {
-    if (!DEBUG_AUTH_LOG) return;
+    if (!DEBUG_AUTH_LOG || !isLiveRequest) return;
+    if (
+      reason !== "missing_token" &&
+      reason !== "malformed_token" &&
+      reason !== "invalid_signature" &&
+      reason !== "query_token_not_allowed"
+    ) {
+      return;
+    }
     console.info("[DEBUG_AUTH]", reason, {
       guard: "authGuard",
       path: route,

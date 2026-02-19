@@ -784,11 +784,15 @@ const ChatCenter: React.FC = () => {
     }
 
     const base = apiBase.replace(/\/$/, "");
+    const apiRoot = /\/api$/i.test(base) ? base : `${base}/api`;
     const url =
-      `${base}/live/${encodeURIComponent(tenant)}` +
+      `${apiRoot}/live/${encodeURIComponent(tenant)}` +
       `?token=${encodeURIComponent(token)}`;
 
-    console.log("[SSE connect url]", url);
+    const DEBUG_SSE =
+      (import.meta as any)?.env?.VITE_DEBUG_SSE === "1" ||
+      (window as any)?.localStorage?.getItem?.("DEBUG_SSE") === "1";
+    if (DEBUG_SSE) console.log("[SSE connect url]", url);
 
     const w = window as any;
 
@@ -834,7 +838,7 @@ const ChatCenter: React.FC = () => {
 
       const botIdNow = selectedBotIdRef.current;
       if (!botIdNow) {
-        console.log("[SSE skip] no botIdNow", { botIdNow });
+        if (DEBUG_SSE) console.log("[SSE skip] no botIdNow", { botIdNow });
         return;
       }
 
@@ -861,7 +865,7 @@ const ChatCenter: React.FC = () => {
       const targetSessionId = currentSessionId || nextSession?.id || null;
       if (targetSessionId) await fetchMessagesRef.current(targetSessionId);
 
-      console.log("[SSE refreshed]", {
+      if (DEBUG_SSE) console.log("[SSE refreshed]", {
         evType,
         botIdFromEvent,
         sessionIdFromEvent,
@@ -880,7 +884,7 @@ const ChatCenter: React.FC = () => {
         outer = { raw: String(ev.data ?? "") };
       }
 
-      console.log("[SSE raw]", { evName, outer });
+      if (DEBUG_SSE) console.log("[SSE raw]", { evName, outer });
 
       // ignore heartbeat
       if (
@@ -898,8 +902,12 @@ const ChatCenter: React.FC = () => {
       void runRefresh(payload, evType);
     };
 
-    es.onopen = () => console.log("[SSE open]");
-    es.onerror = (e) => console.warn("[SSE error]", e);
+    es.onopen = () => {
+      if (DEBUG_SSE) console.log("[SSE open]");
+    };
+    es.onerror = (e) => {
+      if (DEBUG_SSE) console.warn("[SSE error]", e);
+    };
 
     // default message (จะยิงเมื่อ backend ไม่ได้ใส่ "event:" หรือใส่ event: message)
     es.onmessage = handleEvent;
