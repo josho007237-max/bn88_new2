@@ -410,8 +410,6 @@ export type RoleItem = {
 export type AdminUserItem = {
   id: string;
   email: string;
-const ADMIN_TENANT = "bn9";
-
   roles: RoleItem[];
 };
 
@@ -422,13 +420,12 @@ function trimSlash(s: string) {
 }
 
 // IMPORTANT: baseURL ควรชี้ไปที่ "/api" (หรือ "http://localhost:3000/api")
+const ADMIN_TENANT = (import.meta as any).env?.VITE_TENANT || "bn9";
+
 export const API_BASE = trimSlash(
- codex/fix-cloudflared-tunnel-command-syntax-ozmbti
-  (import.meta as any).env?.VITE_API_BASE || "https://api.bn9.app/api"
   (import.meta as any).env?.VITE_API_BASE ||
     (import.meta as any).env?.VITE_ADMIN_API_BASE ||
     "https://api.bn9.app/api"
- main
 );
 
 export const TENANT =
@@ -531,23 +528,15 @@ export const API = axios.create({
   baseURL: API_BASE || "/api",
   timeout: 15000,
 });
-function buildAuthHeaders(path?: string): HeadersInit {
-  const tenant = path?.includes("/admin/") ? ADMIN_TENANT : TENANT;
-  const headers: Record<string, string> = { "x-tenant": tenant };
-  let res = await fetch(url, { headers: buildAuthHeaders(url) });
-  let res = await fetch(requestUrl, { headers: buildAuthHeaders(requestUrl) });
-  const requestUrl = String(cfg.url || "");
-  headers["x-tenant"] = requestUrl.includes("/admin/") ? ADMIN_TENANT : TENANT;
-}
 
 // Interceptors (ของเดิมคุณ) ...
 
 // ✅ เพิ่มอันนี้ให้มี export จริง
 /* ============================ Line Content (Image/File) ============================ */
 
-    res = await fetch(fallbackUrl, { headers: { "x-tenant": ADMIN_TENANT } });
-    res = await fetch(fallbackUrl, { headers: { "x-tenant": ADMIN_TENANT } });
-        `[api] Network/CORS error while calling ${reqUrl}. Add ALLOWED_ORIGINS=http://localhost:5555 in backend .env (and include your origin). Current API_BASE=${API_BASE}.`,
+function getLineContentPath(id: string) {
+  return `/admin/chat/line-content/${encodeURIComponent(id)}`;
+}
 
 export function getLineContentUrl(id: string) {
   const base = API_BASE || "/api";
