@@ -19,7 +19,6 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 ```
 
-=======
  main
 ### 1) Prepare DB schema
 ```powershell

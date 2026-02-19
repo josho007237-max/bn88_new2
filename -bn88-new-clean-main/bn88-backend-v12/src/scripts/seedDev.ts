@@ -28,7 +28,6 @@ async function main() {
   // compatibility: if schema has "enabled" column, keep root admin enabled in dev
   try {
  codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
-=======
  codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
 main
     const adminUserModel = (prisma as any).adminUser;
@@ -39,8 +38,6 @@ main
       });
     }
  codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
-=======
-=======
     await prisma.$executeRawUnsafe(
       'UPDATE "AdminUser" SET "enabled" = 1 WHERE "id" = ? OR "email" = ?',
       admin.id,
