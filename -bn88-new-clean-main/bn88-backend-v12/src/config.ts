@@ -41,6 +41,15 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error("[INVALID ENV]", parsed.error.format());
+  const secretIssue = parsed.error.issues.find(
+    (issue) => issue.path.join(".") === "SECRET_ENC_KEY_BN9",
+  );
+  if (secretIssue) {
+    console.error(
+      "[INVALID ENV][HINT] SECRET_ENC_KEY_BN9 must be exactly 32 chars. " +
+        "Run: node ./scripts/gen-dev-secret-key.mjs and set the value in .env",
+    );
+  }
   process.exit(1);
 }
 const env = parsed.data;
