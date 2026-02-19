@@ -9,6 +9,9 @@ Quick reference guide for local development. For detailed instructions, see [SET
 ```powershell
 # From repository root
 .\start-dev.ps1
+
+# หรือรันทั้งหมด (backend + tunnel + dashboard + smoke-domain)
+pwsh -File .\run-all.ps1
 ```
 
 Opens two PowerShell windows:
