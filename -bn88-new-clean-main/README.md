@@ -69,6 +69,7 @@ cd ../bn88-frontend-dashboard-v12 && npm run dev
 - `.\start-dev.ps1`: เปิด backend + frontend
 - `.\stop-dev.ps1`: หยุด process ที่ใช้พอร์ต dev
 - `.\smoke.ps1`: ตรวจสุขภาพระบบแบบรวดเร็ว
+- `.\run-all.ps1`: เปิด backend + cloudflared + dashboard และรัน smoke-domain อัตโนมัติ
 
 ## Security Notes
 
