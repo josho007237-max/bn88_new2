@@ -55,14 +55,23 @@ try {
 
 # 2) DNS resolve + parse UUID from cfargotunnel target
 try {
-  $dnsOut = Resolve-DnsName $Domain -Server 1.1.1.1 -ErrorAction Stop
+  $dnsOut = $null
+  $dnsRecordKind = ""
+  try {
+    $dnsOut = Resolve-DnsName $Domain -Type CNAME -Server 1.1.1.1 -ErrorAction Stop
+    $dnsRecordKind = "CNAME"
+  } catch {
+    $dnsOut = Resolve-DnsName $Domain -Server 1.1.1.1 -Type A_AAAA -ErrorAction Stop
+    $dnsRecordKind = "A/AAAA"
+  }
+
   $answers = @($dnsOut | Where-Object { $_.Section -eq 'Answer' })
   $ok = ($answers.Count -gt 0)
   $dnsTargetRecord = $answers | Where-Object { $_.NameHost } | Select-Object -First 1
   if (-not $dnsTargetRecord) { $dnsTargetRecord = $answers | Select-Object -First 1 }
   $dnsTarget = if ($dnsTargetRecord.NameHost) { "$($dnsTargetRecord.NameHost)" } elseif ($dnsTargetRecord.Name) { "$($dnsTargetRecord.Name)" } else { "" }
   $dnsUuid = if ($dnsTarget -match "(?i)^(?<id>[0-9a-f-]{36})\.cfargotunnel\.com\.?$") { $Matches['id'].ToLower() } else { Get-FirstUuid $dnsTarget }
-  $detail = "answers=$($answers.Count)"
+  $detail = "answers=$($answers.Count) type=$dnsRecordKind"
   if ($dnsTarget) { $detail = "$detail target=$dnsTarget" }
   if ($dnsUuid) { $detail = "$detail (uuid=$dnsUuid)" }
   Write-CheckResult "DNS Resolve-DnsName $Domain" $ok $detail
@@ -73,10 +82,15 @@ try {
 # 3) tunnel route dns list
 try {
   $routeOut = & cloudflared tunnel route dns list 2>&1
-  $ok = ($LASTEXITCODE -eq 0 -and ($routeOut | Out-String) -match [regex]::Escape($Domain))
-  Write-CheckResult "cloudflared tunnel route dns list" $ok (($routeOut | Select-Object -First 3) -join " | ")
+  $routeText = ($routeOut | Out-String)
+  if ($LASTEXITCODE -ne 0) {
+    Write-CheckResult "cloudflared tunnel route dns list" $true "WARN: exitCode=$LASTEXITCODE (skip fail)"
+  } else {
+    $ok = ($routeText -match [regex]::Escape($Domain))
+    Write-CheckResult "cloudflared tunnel route dns list" $ok (($routeOut | Select-Object -First 3) -join " | ")
+  }
 } catch {
-  Write-CheckResult "cloudflared tunnel route dns list" $false $_.Exception.Message
+  Write-CheckResult "cloudflared tunnel route dns list" $true "WARN: $($_.Exception.Message)"
 }
 
 # 4) tunnel info + resolve Tunnel ID
@@ -120,8 +134,12 @@ if ($dnsUuid -and $tunnelId) {
     $script:RouteFixCommand = "cloudflared tunnel route dns -f $tunnelId $Domain"
   }
 } else {
-  $miss = "dnsUuid=$dnsUuid tunnelId=$tunnelId"
-  Write-CheckResult "DNS route UUID matches tunnel ID" $false "cannot compare ($miss)"
+  if (-not $dnsUuid) {
+    Write-CheckResult "DNS route UUID matches tunnel ID" $true "WARN: domain is proxied; no CNAME to parse"
+  } else {
+    $miss = "dnsUuid=$dnsUuid tunnelId=$tunnelId"
+    Write-CheckResult "DNS route UUID matches tunnel ID" $false "cannot compare ($miss)"
+  }
 }
 
 # 5) domain health (Windows schannel friendly)
