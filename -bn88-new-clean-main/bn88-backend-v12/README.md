@@ -43,20 +43,21 @@ $r = irm "http://127.0.0.1:3000/api/admin/auth/login" -Method POST -ContentType 
 $r.token
 ```
 
-## Cookie-based login & SSE
-Login and grab the Set-Cookie header before reusing the same session across SSE/EventSource:
-```
-curl -i -H "Content-Type: application/json" -H "x-tenant: bn9" \
-  -d '{"email":"admin@example.com","password":"secret"}' \
-  http://localhost:3000/api/admin/auth/login
-```
-Copy the `bn88_token` cookie and then stream events:
-```
-curl -i -N http://localhost:3000/api/live/bn9
-```
-The response should keep the connection open with `Content-Type: text/event-stream`; the browser frontend can mirror this via `new EventSource("/api/live/<tenant>", { withCredentials: true })`.
+## SSE auth (EventSource)
+`GET /api/live/:tenant` accepts auth from these sources (priority order):
+- `Authorization: Bearer <token>`
+- query string (`?token=...` or `?access_token=...`)
+- cookie `bn88_token`
 
-If a frontend like `bn88-frontend-dashboard-v12` runs on `localhost:5173`, use the Vite dev proxy so `/api/*` requests go through `http://localhost:3000`, then the cookie rides along automatically. Any other fetches that need auth should include `credentials: "include"`.
+Because browser `EventSource` cannot attach custom auth headers, frontend should open SSE with token in query:
+```
+new EventSource(`/api/live/${tenant}?token=${token}`)
+```
+
+cURL probe example:
+```
+curl -i -N "http://localhost:3000/api/live/bn9?token=<TOKEN>"
+```
 
 ## Login + reuse token
 ```
