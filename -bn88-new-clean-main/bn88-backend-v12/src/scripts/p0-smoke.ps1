@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://localhost:3000"
-$tenant = $Env:TENANT ?? "bn9"
+$tenant = if ([string]::IsNullOrWhiteSpace($Env:TENANT)) { "bn9" } else { $Env:TENANT.Trim() }
 $adminEmail = $Env:ADMIN_EMAIL
 $adminPassword = $Env:ADMIN_PASSWORD
 $steps = @()
@@ -67,12 +67,18 @@ if ($token) {
   }
 
   try {
-    $curlArgs = "-N", "$baseUrl/api/live/$tenant?token=$token", "--max-time", "5"
+    $curlArgs = "-i", "-N", "$baseUrl/api/live/$tenant?token=$token", "--max-time", "5"
     $proc = Start-Process -FilePath "curl.exe" -ArgumentList $curlArgs -NoNewWindow -RedirectStandardOutput "${Env:TEMP}\p0-sse.log" -RedirectStandardError "${Env:TEMP}\p0-sse.err" -PassThru
     $proc | Wait-Process
     $exit = $proc.ExitCode
-    if ($exit -eq 0) {
-      Write-Step "SSE /api/live" $true "curl exit 0"
+    $sseHead = ""
+    if (Test-Path "${Env:TEMP}\p0-sse.log") {
+      $sseHead = (Get-Content "${Env:TEMP}\p0-sse.log" -TotalCount 20 | Out-String)
+    }
+    if ($exit -eq 0 -and $sseHead -match "HTTP/\S+\s+200") {
+      Write-Step "SSE /api/live" $true "HTTP 200"
+    } elseif ($sseHead -match "HTTP/\S+\s+401" -or $sseHead -match "HTTP/\S+\s+403") {
+      Write-Step "SSE /api/live" $false "auth failed"
     } else {
       Write-Step "SSE /api/live" $false "curl exit $exit"
     }
