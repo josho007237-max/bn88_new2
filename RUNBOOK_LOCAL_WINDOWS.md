@@ -2,6 +2,14 @@
 
 โครงสร้าง repo นี้มีโค้ดหลักอยู่ใต้โฟลเดอร์ `-bn88-new-clean-main`.
 
+## 0) แก้ปัญหา ENOENT ตอน `npm run dev` (อยู่ผิดโฟลเดอร์)
+
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-frontend-dashboard-v12
+Test-Path .\package.json
+npm run dev
+```
+
 ## 1) ไปที่ backend ให้ถูก path
 
 ```powershell
