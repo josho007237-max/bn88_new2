@@ -9,26 +9,11 @@ function Fail([string]$Message) {
   exit 1
 }
 
-$searchBase = 'C:\Go23_th\bn88_new2'
-$root = $null
-
-$candidates = @($searchBase)
-if (Test-Path $searchBase) {
-  $candidates += @(Get-ChildItem -Path $searchBase -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
-}
-
-foreach ($candidate in $candidates) {
-  if (-not $candidate) { continue }
-  $backendPkg = Join-Path $candidate 'bn88-backend-v12\package.json'
-  $frontendPkg = Join-Path $candidate 'bn88-frontend-dashboard-v12\package.json'
-  if ((Test-Path $backendPkg) -and (Test-Path $frontendPkg)) {
-    $root = $candidate
-    break
-  }
-}
-
-if (-not $root) {
-  Fail 'cannot detect repo root under C:\Go23_th\bn88_new2 with bn88-backend-v12\package.json and bn88-frontend-dashboard-v12\package.json'
+$root = 'C:\Go23_th\bn88_new2\-bn88-new-clean-main'
+$backendPkg = Join-Path $root 'bn88-backend-v12\package.json'
+$frontendPkg = Join-Path $root 'bn88-frontend-dashboard-v12\package.json'
+if (-not ((Test-Path $backendPkg) -and (Test-Path $frontendPkg))) {
+  Fail 'cannot detect repo root at C:\Go23_th\bn88_new2\-bn88-new-clean-main with bn88-backend-v12\package.json and bn88-frontend-dashboard-v12\package.json'
 }
 
 Set-Location $root

@@ -20,9 +20,9 @@ function Fail([string]$Message) {
   exit 1
 }
 
-$repoRoot = (& git rev-parse --show-toplevel 2>$null).Trim()
-if (-not $repoRoot) {
-  Fail 'cannot detect repository root via git rev-parse --show-toplevel'
+$repoRoot = 'C:\Go23_th\bn88_new2\-bn88-new-clean-main'
+if (-not (Test-Path $repoRoot)) {
+  Fail 'missing repo root C:\Go23_th\bn88_new2\-bn88-new-clean-main'
 }
 
 Write-Section "repo root => $repoRoot"
@@ -30,6 +30,15 @@ $backendDir = Join-Path $repoRoot 'bn88-backend-v12'
 $frontendDir = Join-Path $repoRoot 'bn88-frontend-dashboard-v12'
 if (-not (Test-Path $backendDir)) { Fail 'missing bn88-backend-v12 at repo root' }
 if (-not (Test-Path $frontendDir)) { Fail 'missing bn88-frontend-dashboard-v12 at repo root' }
+$envFile = Join-Path $frontendDir '.env.local'
+if (-not (Test-Path $envFile)) {
+  Fail 'missing bn88-frontend-dashboard-v12/.env.local'
+}
+$envContent = (Get-Content -Path $envFile -Raw)
+if ($envContent -notmatch 'VITE_API_BASE=http://127.0.0.1:3000/api') {
+  Fail 'frontend .env.local must contain VITE_API_BASE=http://127.0.0.1:3000/api'
+}
+Write-Host '[smoke-all] .env.local VITE_API_BASE OK' -ForegroundColor Green
 
 $ports = @(3000, 5555, 6380)
 foreach ($port in $ports) {
