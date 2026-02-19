@@ -27,6 +27,7 @@
     "prisma:reset": "prisma migrate reset --force",
     "prisma:studio": "prisma studio",
     "migrate:deploy": "prisma migrate deploy",
+    "predev": "prisma generate",
     "dev": "tsx watch src/server.ts",
     "doctor": "node -v && npm -v && node -e \"const fs=require('fs');const p='node_modules/.bin/tsx';const PORT=process.env.PORT||'3000';const REDIS_URL=process.env.REDIS_URL||'';const REDIS_PORT=process.env.REDIS_PORT||'';const REDIS_HOST=process.env.REDIS_HOST||'';console.log(fs.existsSync(p)?'tsx OK: '+p:'tsx MISSING: '+p);console.log('PORT='+PORT);console.log('REDIS_URL='+REDIS_URL);console.log('REDIS_HOST='+REDIS_HOST);console.log('REDIS_PORT='+REDIS_PORT);\"",
     "postinstall": "prisma generate",
