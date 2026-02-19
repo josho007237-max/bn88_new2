@@ -79,3 +79,21 @@ irm https://api.bn9.app/api/health -SkipCertificateCheck
 ```powershell
 cloudflared --loglevel debug tunnel --config "$env:USERPROFILE\.cloudflared\config.yml" run bn88-api
 ```
+
+## 6) ตรวจ repo + diff ให้ถูกต้อง (Windows PowerShell)
+
+เป้าหมาย: ตรวจว่าแก้ไฟล์ `bn88-frontend-dashboard-v12/src/lib/api.ts` (เช่น เพิ่ม `getLineContentPath`) แสดงใน `git diff` จริง
+
+```powershell
+# 1) เข้าโฟลเดอร์โปรเจกต์ที่ถูกต้อง
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
+
+# 2) ตรวจ git root และสถานะ branch แบบสั้น
+git rev-parse --show-toplevel
+git status -sb
+
+# 3) ดู diff เฉพาะไฟล์ api.ts
+git diff -- .\bn88-frontend-dashboard-v12\src\lib\api.ts
+```
+
+> หมายเหตุสำคัญ: ถ้าตอนนี้อยู่ในโฟลเดอร์ FE (`...\bn88-frontend-dashboard-v12`) แล้วใช้ `Split-Path` ถอย 2 ชั้น มักจะหลุดไป `bn88_new2` (ผิดตำแหน่ง) ให้ใช้ `cd ..` ถอย 1 ชั้นไป `-bn88-new-clean-main` หรือ `cd` ด้วย full path ตามตัวอย่างด้านบนแทน
