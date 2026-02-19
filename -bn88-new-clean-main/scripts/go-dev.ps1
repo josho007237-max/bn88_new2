@@ -9,20 +9,36 @@ function Fail([string]$Message) {
   exit 1
 }
 
-$root = 'C:\Go23_th\bn88_new2\-bn88-new-clean-main'
-$backendPkg = Join-Path $root 'bn88-backend-v12\package.json'
-$frontendPkg = Join-Path $root 'bn88-frontend-dashboard-v12\package.json'
-if (-not ((Test-Path $backendPkg) -and (Test-Path $frontendPkg))) {
-  Fail 'cannot detect repo root at C:\Go23_th\bn88_new2\-bn88-new-clean-main with bn88-backend-v12\package.json and bn88-frontend-dashboard-v12\package.json'
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$candidates = @(
+  (Get-Location).Path,
+  $scriptDir,
+  (Split-Path -Parent $scriptDir),
+  'C:\BN88-new-clean',
+  'D:\BN88-new-clean',
+  'E:\BN88-new-clean'
+)
+
+$root = $null
+foreach ($candidate in $candidates) {
+  if (-not $candidate) { continue }
+  $backendPkg = Join-Path $candidate 'bn88-backend-v12\package.json'
+  $frontendPkg = Join-Path $candidate 'bn88-frontend-dashboard-v12\package.json'
+  if ((Test-Path $backendPkg) -and (Test-Path $frontendPkg)) {
+    $root = $candidate
+    break
+  }
 }
 
-Set-Location $root
+if (-not $root) {
+  Fail 'cannot detect repo root with bn88-backend-v12\package.json and bn88-frontend-dashboard-v12\package.json'
+}
+
+function global:cdbnroot { Set-Location $root }
 function global:cdbnbe { Set-Location (Join-Path $root 'bn88-backend-v12') }
 function global:cdbnfe { Set-Location (Join-Path $root 'bn88-frontend-dashboard-v12') }
-Info "root => $root"
 
-$pwshCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } elseif (Get-Command powershell -ErrorAction SilentlyContinue) { 'powershell' } else { $null }
-if (-not $pwshCmd) { Fail 'cannot find pwsh/powershell in PATH' }
+Info "root => $root"
 
 $backendDir = Join-Path $root 'bn88-backend-v12'
 if (-not (Test-Path (Join-Path $backendDir 'node_modules'))) {
@@ -31,8 +47,15 @@ if (-not (Test-Path (Join-Path $backendDir 'node_modules'))) {
   npm i
   Pop-Location
 }
+
 Info 'backend: npm run dev'
+$pwshCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } elseif (Get-Command powershell -ErrorAction SilentlyContinue) { 'powershell' } else { $null }
+if (-not $pwshCmd) { Fail 'cannot find pwsh/powershell in PATH' }
 Start-Process -FilePath $pwshCmd -WorkingDirectory $backendDir -ArgumentList '-NoExit', '-Command', 'npm run dev' | Out-Null
+
+Write-Host 'backend checks:' -ForegroundColor Green
+Write-Host '  curl http://127.0.0.1:3000/api/health'
+Write-Host '  netstat -ano | findstr :3000'
 
 $frontendDir = Join-Path $root 'bn88-frontend-dashboard-v12'
 if (-not (Test-Path (Join-Path $frontendDir 'node_modules'))) {
@@ -41,18 +64,14 @@ if (-not (Test-Path (Join-Path $frontendDir 'node_modules'))) {
   npm i
   Pop-Location
 }
-'VITE_API_BASE=http://127.0.0.1:3000/api' | Set-Content -Path (Join-Path $frontendDir '.env.local') -Encoding UTF8
+
+$envFile = Join-Path $frontendDir '.env.local'
+'VITE_API_BASE=http://127.0.0.1:3000/api' | Set-Content -Path $envFile -Encoding UTF8
+Info "frontend: wrote $envFile"
+
 Info 'frontend: npm run dev'
 Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev' | Out-Null
 
-Write-Host ''
-Write-Host 'Copy/Paste checks:' -ForegroundColor Green
-Write-Host 'netstat -ano | findstr :3000'
-Write-Host 'curl http://127.0.0.1:3000/api/health'
-Write-Host '$body = @{ email = "root@bn9.local"; password = "bn9@12345" } | ConvertTo-Json'
-Write-Host '$token = (Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Body $body).token'
-Write-Host 'Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3000/api/admin/bots" -Headers @{ Authorization = "Bearer $token"; "x-tenant" = "bn9" }'
-
 Write-Host 'tsc checks:' -ForegroundColor Green
-Write-Host 'cd bn88-backend-v12; .\node_modules\.bin\tsc.cmd -p tsconfig.json --noEmit'
-Write-Host 'cd bn88-frontend-dashboard-v12; .\node_modules\.bin\tsc.cmd -p tsconfig.json --noEmit'
+Write-Host '  cd bn88-backend-v12; .\node_modules\.bin\tsc.cmd -p tsconfig.json --noEmit'
+Write-Host '  cd bn88-frontend-dashboard-v12; .\node_modules\.bin\tsc.cmd -p tsconfig.json --noEmit'
