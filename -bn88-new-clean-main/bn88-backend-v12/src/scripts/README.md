@@ -32,3 +32,9 @@ npx tsx src/scripts/debugTelegramBotSecret.ts
 ```
 
 This shows Telegram bots for tenant `bn9` and prints whether a token exists.
+
+## Smoke Cloudflare domain (tunnel + DNS + health)
+
+```powershell
+pwsh -File .\src\scripts\smoke-domain.ps1
+```
