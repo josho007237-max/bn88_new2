@@ -31,12 +31,12 @@ if ($null -eq $bots) { Fail 'bots response is null' }
 if ($null -eq $bots.items) { Fail 'bots.items missing in response' }
 if ($bots.items.Count -le 0) { Fail "bots.items expected length > 0, got $($bots.items.Count)" }
 
-Write-Host "[smoke-all] SSE => $BaseUrl/api/live/$Tenant (curl -i -N, max-time 5s)"
+Write-Host "[smoke-all] SSE => $BaseUrl/api/live/$Tenant?token=<token> (curl -i -N, max-time 5s)"
 $curlCmd = if (Get-Command curl.exe -ErrorAction SilentlyContinue) { 'curl.exe' } elseif (Get-Command curl -ErrorAction SilentlyContinue) { 'curl' } else { $null }
 if (-not $curlCmd) {
   Write-Host '[smoke-all] WARN: curl not found, skipping SSE check' -ForegroundColor Yellow
 } else {
-  $sseUrl = "$BaseUrl/api/live/$Tenant"
+  $sseUrl = "$BaseUrl/api/live/$Tenant?token=$token"
   $sseOutput = & $curlCmd -i -N --max-time 5 $sseUrl 2>&1
   $sseText = ($sseOutput | Out-String)
   if ($sseText -match 'HTTP/\S+\s+401' -or $sseText -match 'HTTP/\S+\s+403') {
