@@ -4,6 +4,20 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$pkgPath = Join-Path $BackendPath 'package.json'
+if (-not (Test-Path -Path $pkgPath)) {
+  Write-Host "[check-env] ERROR: package.json not found at $BackendPath" -ForegroundColor Red
+  Write-Host "[check-env] Hint: cd into bn88-backend-v12 before running check:env." -ForegroundColor Yellow
+  exit 1
+}
+
+$pkgRaw = Get-Content -Path $pkgPath -Raw
+if ($pkgRaw -notmatch '"name"\s*:\s*"bn88-backend-v12"') {
+  Write-Host "[check-env] ERROR: $BackendPath is not bn88-backend-v12 (package name mismatch)." -ForegroundColor Red
+  Write-Host "[check-env] Hint: run from the backend folder or pass -BackendPath explicitly." -ForegroundColor Yellow
+  exit 1
+}
+
 $envFile = Join-Path $BackendPath '.env'
 $exampleFile = Join-Path $BackendPath '.env.example'
 

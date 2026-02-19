@@ -1,13 +1,20 @@
 # Dev Notes
 
-## Deterministic dev auth flow (bn88-backend-v12)
+## Deterministic dev auth flow (`bn88-backend-v12`)
 
+### 0) Confirm you're in the correct project folder
 ```powershell
 cd .\-bn88-new-clean-main\bn88-backend-v12
+if (!(Test-Path .\package.json)) { throw "package.json not found - wrong folder" }
+if ((Get-Content .\package.json -Raw) -notmatch '"name"\s*:\s*"bn88-backend-v12"') { throw "wrong package name - expected bn88-backend-v12" }
+```
+
+### 1) Create `.env` if missing
+```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-## REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
+### REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
 `SECRET_ENC_KEY_BN9` is required by `src/config.ts` (`z.string().length(32)`).
 
 ```powershell
@@ -18,12 +25,26 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 ```
 
-### 1) Prepare DB schema
+### 2) Quick env checks (safe in PowerShell)
+
+Verify `dotenv` resolves from the backend folder:
+```powershell
+node -e "console.log(require.resolve('dotenv'))"
+```
+
+Verify required keys exist (without dotenv):
+```powershell
+Get-Content .env | Select-String '^SECRET_ENC_KEY_BN9='
+Get-Content .env | Select-String '^ENABLE_ADMIN_API='
+Get-Content .env | Select-String '^ENABLE_DEV_ROUTES='
+```
+
+### 3) Prepare DB schema
 ```powershell
 npx prisma db push
 ```
 
-### 2) Seed deterministic dev admin + RBAC
+### 4) Seed deterministic dev admin + RBAC
 ```powershell
 npm run seed:dev
 ```
@@ -34,12 +55,17 @@ Defaults from `seedDev.ts`:
 - tenant: `bn9`
 - RBAC: includes `manageBots`
 
-### 3) Start backend
+### 5) Start backend
 ```powershell
 npm run dev
 ```
 
-### 4) Login + call `/api/admin/bots`
+### 6) Health check
+```powershell
+irm -Method Get -Uri "http://127.0.0.1:3000/api/health"
+```
+
+### 7) Login + call `/api/admin/bots`
 
 PowerShell (`irm`):
 ```powershell
