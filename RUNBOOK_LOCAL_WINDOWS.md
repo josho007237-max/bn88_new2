@@ -46,3 +46,28 @@ $backend="C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12"
 rg -n -S -F "/api/admin" "$backend\src\server.ts"
 rg -n -S -F "ENABLE_ADMIN_API" "$backend\src\server.ts"
 ```
+
+
+## 5) Tunnel/API smoke (Windows)
+
+### 5.1 ใช้ `rg` หาไฟล์ที่ต้องแก้ (API_BASE / SSE / cloudflared)
+
+```powershell
+rg -n -S "VITE_API_BASE|VITE_ADMIN_API_BASE|API_BASE" .\-bn88-new-clean-main\bn88-frontend-dashboard-v12\src .\-bn88-new-clean-main\bn88-frontend-dashboard-v12\.env.example
+rg -n -S "/api/live|EventSource|token=" .\-bn88-new-clean-main\bn88-frontend-dashboard-v12\src
+rg -n -S "cloudflared.*loglevel|tunnel --config|--ssl-no-revoke|SkipCertificateCheck" .\run-kumphan-bn9.ps1 .\-bn88-new-clean-main\run-tunnel.ps1
+```
+
+### 5.2 ทดสอบ health ผ่านโดเมนจริง (แก้ Schannel revocation)
+
+```powershell
+curl.exe -i --ssl-no-revoke https://api.bn9.app/api/health
+curl.exe -i -k https://api.bn9.app/api/health
+irm https://api.bn9.app/api/health -SkipCertificateCheck
+```
+
+### 5.3 รัน cloudflared debug (flag ตำแหน่งถูกต้อง)
+
+```powershell
+cloudflared --loglevel debug tunnel --config "$env:USERPROFILE\.cloudflared\config.yml" run bn88-api
+```

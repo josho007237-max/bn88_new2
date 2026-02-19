@@ -425,7 +425,7 @@ function trimSlash(s: string) {
 export const API_BASE = trimSlash(
   (import.meta as any).env?.VITE_API_BASE ||
     (import.meta as any).env?.VITE_ADMIN_API_BASE ||
-    "/api"
+    "https://api.bn9.app/api"
 );
 
 export const TENANT =

@@ -42,8 +42,8 @@ cloudflared tunnel ingress validate --config "$configPath"
 
 Write-Host ""
 Write-Host "Run tunnel (foreground):"
-Write-Host "cloudflared tunnel --config `"$configPath`" run $tunnelName"
-cloudflared tunnel --config "$configPath" run $tunnelName
+Write-Host "cloudflared --loglevel debug tunnel --config `"$configPath`" run $tunnelName"
+cloudflared --loglevel debug tunnel --config "$configPath" run $tunnelName
 
 Write-Host ""
 Write-Host "DNS check commands:"
@@ -52,5 +52,7 @@ Write-Host "Resolve-DnsName $domainAdmin -Type CNAME"
 
 Write-Host ""
 Write-Host "Test commands:"
-Write-Host "curl https://$domainApi/api/health"
+Write-Host "curl.exe -i --ssl-no-revoke https://$domainApi/api/health"
+Write-Host "curl.exe -i -k https://$domainApi/api/health"
+Write-Host "irm https://$domainApi/api/health -SkipCertificateCheck"
 Write-Host "curl -I https://$domainAdmin"
