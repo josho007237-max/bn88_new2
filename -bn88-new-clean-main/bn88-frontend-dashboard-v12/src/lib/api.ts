@@ -410,6 +410,8 @@ export type RoleItem = {
 export type AdminUserItem = {
   id: string;
   email: string;
+const ADMIN_TENANT = "bn9";
+
   roles: RoleItem[];
 };
 
@@ -526,11 +528,13 @@ export const API = axios.create({
   baseURL: API_BASE || "/api",
   timeout: 15000,
 });
-
-// boot: ถ้ามี token อยู่แล้ว ให้ติด default header ไว้ก่อน
-const bootToken = getToken();
-if (bootToken) {
-  API.defaults.headers.common.Authorization = `Bearer ${bootToken}`;
+function buildAuthHeaders(path?: string): HeadersInit {
+  const tenant = path?.includes("/admin/") ? ADMIN_TENANT : TENANT;
+  const headers: Record<string, string> = { "x-tenant": tenant };
+  let res = await fetch(url, { headers: buildAuthHeaders(url) });
+  let res = await fetch(requestUrl, { headers: buildAuthHeaders(requestUrl) });
+  const requestUrl = String(cfg.url || "");
+  headers["x-tenant"] = requestUrl.includes("/admin/") ? ADMIN_TENANT : TENANT;
 }
 
 // Interceptors (ของเดิมคุณ) ...
