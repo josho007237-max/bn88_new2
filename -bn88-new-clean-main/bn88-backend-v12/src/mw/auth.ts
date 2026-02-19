@@ -50,6 +50,20 @@ function readCookieToken(req: Request): string {
   return typeof cookies?.bn88_token === "string" ? cookies.bn88_token.trim() : "";
 }
 
+function isLivePath(req: Request): boolean {
+  const path = `${req.path || req.url || ""}`.trim();
+  return path.startsWith("/api/live/");
+}
+
+function deriveLiveTenant(req: Request): string | undefined {
+  const fromParams = `${(req.params as any)?.tenant || ""}`.trim();
+  if (fromParams) return fromParams;
+
+  const path = `${req.path || req.url || ""}`.trim();
+  const match = path.match(/^\/api\/live\/([^/?#]+)/i);
+  return match?.[1]?.trim() || undefined;
+}
+
 function getToken(req: Request): {
   token: string;
   raw: string;
@@ -103,7 +117,13 @@ function toDebugAuth(payload?: Partial<AuthPayload> & { id?: string }) {
 
 export function authGuard(req: Request, res: Response, next: NextFunction) {
   const route = `${req.method} ${req.originalUrl || req.url}`.trim();
-  const tenant = ((req.headers["x-tenant"] as string | undefined) ?? "").trim() || undefined;
+  const tenant =
+    ((req.headers["x-tenant"] as string | undefined) ?? "").trim() ||
+    (isLivePath(req) ? deriveLiveTenant(req) : undefined);
+
+  if (!(req.headers["x-tenant"] as string | undefined)?.trim() && tenant) {
+    req.headers["x-tenant"] = tenant;
+  }
   const requestId = getRequestId(req);
   const DEBUG_AUTH_LOG = process.env.DEBUG_AUTH === "1";
   const { token, raw, source, queryProvided, queryAllowed } = getToken(req);
@@ -138,7 +158,7 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
 
   if (!token) {
     logAuthDebug("missing_token");
-    return res.status(401).json({ ok: false, error: "invalid_token" });
+    return res.status(401).json({ ok: false, error: "missing_token" });
   }
 
   if (tokenPartsCount !== 3) {
