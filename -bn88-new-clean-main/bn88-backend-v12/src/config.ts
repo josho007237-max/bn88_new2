@@ -16,7 +16,8 @@ const EnvSchema = z.object({
   SECRET_ENC_KEY_BN9: z.string().length(32, { message: "SECRET_ENC_KEY_BN9 must be 32 characters long" }),
 
   // CORS / Admin API
-  ALLOWED_ORIGINS: z.string().default("http://localhost:5173"),
+  CORS_ORIGINS: z.string().optional(),
+  ALLOWED_ORIGINS: z.string().default("http://localhost:5555,http://localhost:5173"),
   ENABLE_ADMIN_API: z.enum(["1", "0"]).default("0"),
 
   // OpenAI (optional)
@@ -71,8 +72,8 @@ export const config = {
 
   ENABLE_ADMIN_API: env.ENABLE_ADMIN_API,
 
-  ALLOWED_ORIGINS: env.ALLOWED_ORIGINS,
-  ALLOWED_ORIGIN_SET: new Set(env.ALLOWED_ORIGINS.split(",").map((s: string) => s.trim()).filter(Boolean)),
+  ALLOWED_ORIGINS: env.CORS_ORIGINS || env.ALLOWED_ORIGINS,
+  ALLOWED_ORIGIN_SET: new Set((env.CORS_ORIGINS || env.ALLOWED_ORIGINS).split(",").map((s: string) => s.trim()).filter(Boolean)),
 
   OPENAI_API_KEY: env.OPENAI_API_KEY,
   OPENAI_MODEL: env.OPENAI_MODEL,

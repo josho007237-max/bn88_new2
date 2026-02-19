@@ -28,8 +28,13 @@ if (-not (Test-Path $credentialsPath)) {
 }
 
 Write-Host "Starting tunnel with config: $configPath"
-cloudflared --config $configPath tunnel run $uuid
+cloudflared --loglevel debug tunnel --config $configPath run $uuid
 
 Write-Host ""
 Write-Host "ตรวจสอบสถานะหลังรันด้วยคำสั่ง:"
 Write-Host "cloudflared tunnel info $uuid"
+Write-Host ""
+Write-Host "ทดสอบจาก Windows (กรณีเจอ CRYPT_E_NO_REVOCATION_CHECK):"
+Write-Host "curl.exe -i --ssl-no-revoke https://api.bn9.app/api/health"
+Write-Host "curl.exe -i -k https://api.bn9.app/api/health"
+Write-Host "irm https://api.bn9.app/api/health -SkipCertificateCheck"
