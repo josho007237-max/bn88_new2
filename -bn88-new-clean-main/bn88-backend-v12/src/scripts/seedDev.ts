@@ -31,7 +31,7 @@ async function main() {
 
   // compatibility: if schema has "enabled" column, keep root admin enabled in dev
   try {
-    const adminUserModel = prisma.adminUser as unknown as AdminUserModelWithOptionalEnabled;
+    const adminUserModel = (prisma as any).adminUser;
     if (adminUserModel?.update) {
       await adminUserModel.update({
         where: { id: admin.id },
@@ -43,7 +43,7 @@ async function main() {
       admin.id,
       email,
     );
-  } catch {
+    } catch {
     // current schema may not have enabled column
   }
 
