@@ -550,16 +550,16 @@ function buildAuthHeaders(): HeadersInit {
   return getAdminAuthHeaders();
 }
 
-export async function getLineContentBlob(messageId: string): Promise<Blob> {
+export async function fetchLineContentBlob(messageId: string): Promise<Blob> {
   const base = API_BASE || "/api";
   const url = `${base}${getLineContentPath(messageId)}`;
-  let res = await fetch(url, { headers: buildAuthHeaders() });
-  if (!res.ok && (res.status === 401 || res.status === 403)) {
-    const fallbackUrl = getLineContentUrl(messageId);
-    res = await fetch(fallbackUrl, { headers: { "x-tenant": TENANT } });
-  }
+  const res = await fetch(url, { headers: buildAuthHeaders() });
   if (!res.ok) throw new Error(`line_content_fetch_failed:${res.status}`);
   return await res.blob();
+}
+
+export async function getLineContentBlob(messageId: string): Promise<Blob> {
+  return fetchLineContentBlob(messageId);
 }
 
 export async function fetchLineContentObjectUrl(messageId: string): Promise<{
@@ -570,11 +570,7 @@ export async function fetchLineContentObjectUrl(messageId: string): Promise<{
 }> {
   const base = API_BASE || "/api";
   const requestUrl = `${base}${getLineContentPath(messageId)}`;
-  let res = await fetch(requestUrl, { headers: buildAuthHeaders() });
-  if (!res.ok && (res.status === 401 || res.status === 403)) {
-    const fallbackUrl = getLineContentUrl(messageId);
-    res = await fetch(fallbackUrl, { headers: { "x-tenant": TENANT } });
-  }
+  const res = await fetch(requestUrl, { headers: buildAuthHeaders() });
   if (!res.ok) throw new Error(`line_content_fetch_failed:${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

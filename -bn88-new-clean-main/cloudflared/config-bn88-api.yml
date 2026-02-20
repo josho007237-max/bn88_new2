@@ -1,0 +1,10 @@
+# Permanent Cloudflare Tunnel config for BN88 API
+# Run: cloudflared tunnel run bn88-api
+
+tunnel: bn88-api
+credentials-file: C:\\Users\\<YOUR_USER>\\.cloudflared\\<TUNNEL_UUID>.json
+
+ingress:
+  - hostname: hook.bn9.app
+    service: http://127.0.0.1:3000
+  - service: http_status:404
