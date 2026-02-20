@@ -1,30 +1,28 @@
 // src/routes/live.ts
 import { Router } from "express";
-import { sseHub } from "../live/sseHub";   // 👈 ต้องเป็น ../live/sseHub
-import { randomUUID } from "node:crypto";
+import { sseHub } from "../lib/sseHub";
 
 export const live = Router();
 
 live.get("/live/:tenant", (req, res) => {
   const { tenant } = req.params;
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   (res as any).flushHeaders?.();
-  res.write(": connected\n\n");
+  res.write(":ok\n\n");
 
-  const id = randomUUID();
-  sseHub.add({ id, tenant, res });
+  const clientId = sseHub.addClient(tenant, res);
 
-  const ping = setInterval(() => {
-    res.write("event: ping\ndata: {}\n\n");
-  }, 25000);
+  const heartbeat = setInterval(() => {
+    res.write(":\n\n");
+    (res as any).flush?.();
+  }, 15000);
 
   req.on("close", () => {
-    clearInterval(ping);
-    sseHub.remove(id);
+    clearInterval(heartbeat);
+    sseHub.removeClient(tenant, clientId);
     res.end();
   });
 });
-
