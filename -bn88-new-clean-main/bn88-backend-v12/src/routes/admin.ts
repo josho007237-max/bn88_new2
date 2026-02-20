@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { randomInt } from "crypto";
 import { prisma } from "../lib/prisma";
+import { sseHub } from "../lib/sseHub";
+import { requirePermission } from "../middleware/basicAuth";
 import { imageSamplesRouter } from "./admin/imageSamples.js";
 
 const router = Router();
@@ -12,6 +14,73 @@ const router = Router();
 router.get("/health", (_req: Request, res: Response) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
+
+router.post(
+  "/debug/broadcast",
+  requirePermission(["viewReports"]),
+  (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as {
+      tenant?: string;
+      type?: string;
+      data?: unknown;
+    };
+
+    const tenant =
+      typeof body.tenant === "string" && body.tenant.trim()
+        ? body.tenant.trim()
+        : "bn9";
+    const type =
+      typeof body.type === "string" && body.type.trim()
+        ? body.type.trim()
+        : "debug";
+
+    if (process.env.DEBUG_SSE === "1") {
+      console.log("[SSE debug endpoint] broadcast", {
+        tenant,
+        type,
+        count: sseHub.count(tenant),
+      });
+    }
+
+    sseHub.emit(type, tenant, body.data);
+    return res.json({ ok: true, sent: true });
+  },
+);
+
+router.post(
+  "/debug/sse",
+  requirePermission(["viewReports"]),
+  (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as {
+      tenant?: string;
+      type?: string;
+      data?: unknown;
+    };
+
+    const tenant =
+      typeof body.tenant === "string" && body.tenant.trim()
+        ? body.tenant.trim()
+        : "bn9";
+    const type =
+      typeof body.type === "string" && body.type.trim()
+        ? body.type.trim()
+        : "debug:test";
+    const data = body.data ?? { ok: true, ts: Date.now() };
+
+    if (process.env.DEBUG_SSE === "1") {
+      console.log("[SSE debug endpoint] /debug/sse", {
+        tenant,
+        type,
+        count: sseHub.count(tenant),
+      });
+    }
+
+    sseHub.emit(type, tenant, data);
+    return res.json({ ok: true });
+  },
+);
+
+
 async function getRuleOrThrow(ruleId: string) {
   const rule = await prisma.dailyRule.findUnique({
     where: { id: ruleId },

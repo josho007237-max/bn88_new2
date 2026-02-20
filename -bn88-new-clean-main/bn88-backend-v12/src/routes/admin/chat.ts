@@ -1358,6 +1358,26 @@ router.post(
             createdAt: adminMsg.createdAt,
           },
         } as any);
+
+        const createdTs = adminMsg.createdAt?.toISOString?.() ?? now.toISOString();
+        if (process.env.DEBUG_SSE === "1") {
+          console.log("[SSE action] chat.message.created", {
+            tenant: session.tenant,
+            botId: session.botId,
+            sessionId: session.id,
+            messageId: adminMsg.id,
+          });
+        }
+
+        sseHub.emit("chat.message.created", session.tenant, {
+          tenant: session.tenant,
+          botId: session.botId,
+          sessionId: session.id,
+          messageId: adminMsg.id,
+          direction: "admin",
+          text: adminMsg.text,
+          ts: createdTs,
+        });
       } catch (sseErr) {
         console.warn("[admin chat reply] SSE broadcast warn", sseErr);
       }
