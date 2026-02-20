@@ -10,12 +10,11 @@ export function sseHandler(req: Request, res: Response) {
   const tenant = (req.params as any).tenant || "bn9";
   const debugSse = process.env.DEBUG_SSE === "1";
 
-  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
-  (res as any).flushHeaders();
+  (res as any).flushHeaders?.();
   res.write(":ok\n\n");
-  (res as any).flush?.();
 
   // ✅ ผูก connection นี้เข้ากับ hub ตัวเดียวกับที่ webhook ใช้ broadcast
   const clientId = sseHub.addClient(tenant, res);
