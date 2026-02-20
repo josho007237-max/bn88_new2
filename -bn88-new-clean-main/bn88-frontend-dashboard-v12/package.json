@@ -11,7 +11,8 @@
     "dev": "vite --port 5555",
     "build": "vite build",
     "preview": "vite preview --port 5555",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke:admin-auth": "node ./scripts/smoke-admin-auth.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

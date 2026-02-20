@@ -100,8 +100,11 @@ export function requirePermission(required: PermissionName[]) {
     const requestId = getRequestId(req);
     const log = createRequestLogger(requestId);
 
-    // ใช้ auth source เดียวจาก authGuard (req.auth)
-    const auth = (req as any).auth as AuthFromGuard | undefined;
+    // ใช้ req.auth เป็นหลัก และ fallback req.user/req.admin เพื่อความเข้ากันได้
+    const auth =
+      ((req as any).auth as AuthFromGuard | undefined) ??
+      ((req as any).user as AuthFromGuard | undefined) ??
+      ((req as any).admin as AuthFromGuard | undefined);
 
     const adminId = auth?.sub || auth?.id; // ✅ รองรับ sub เป็นหลัก
     let roles = (auth?.roles ?? []).map((r) => String(r));
@@ -159,22 +162,31 @@ export function requirePermission(required: PermissionName[]) {
     if (rolesLower.has("superadmin")) return next();
 
     try {
-      // 1) เช็คจาก role ใน token ก่อน (เร็ว)
-      const claimPerms = permissionsFromRoles(roles);
-      if (claimPerms.size > 0 && required.some((perm) => claimPerms.has(perm))) {
+      // 1) เช็คจาก permission claim ใน token ก่อน (เป็นแหล่งหลักตาม authGuard)
+      const directPerms = permissionsFromClaims((auth?.permissions ?? []).map(String));
+      if (directPerms.size > 0 && required.some((perm) => directPerms.has(perm))) {
         return next();
       }
 
-      // 1.1) รองรับ permission claim ตรง ๆ จาก token
-      const directPerms = permissionsFromClaims((auth?.permissions ?? []).map(String));
-      if (directPerms.size > 0 && required.some((perm) => directPerms.has(perm))) {
+      // 1.1) fallback role claim ใน token
+      const claimPerms = permissionsFromRoles(roles);
+      if (claimPerms.size > 0 && required.some((perm) => claimPerms.has(perm))) {
         return next();
       }
 
       if (!adminId) {
         logAuthState("missing_adminId");
         debugFieldTrace("missing_adminId");
-        return res.status(401).json({ ok: false, message: "unauthorized" });
+        return res.status(401).json({
+          ok: false,
+          code: "UNAUTHENTICATED",
+          message: "unauthorized",
+          required,
+          have: {
+            permissions: Array.from(directPerms),
+            roles,
+          },
+        });
       }
 
       // 2) ถ้ายังไม่พอ → เช็คจาก DB (RBAC)
@@ -196,7 +208,17 @@ export function requirePermission(required: PermissionName[]) {
         logAuthState("rbac_empty");
         debugFieldTrace("rbac_empty");
         log.warn("RBAC deny: no permissions for admin", adminId);
-        return res.status(403).json({ ok: false, message: "forbidden" });
+        return res.status(403).json({
+          ok: false,
+          code: "FORBIDDEN",
+          message: "forbidden",
+          required,
+          have: {
+            permissions: Array.from(directPerms),
+            roles,
+            rbac: Array.from(granted),
+          },
+        });
       }
 
       const ok = required.some((perm) => granted.has(perm));
@@ -208,7 +230,17 @@ export function requirePermission(required: PermissionName[]) {
           granted: Array.from(granted),
         });
         log.warn("RBAC deny: missing permission", { required, adminId });
-        return res.status(403).json({ ok: false, message: "forbidden" });
+        return res.status(403).json({
+          ok: false,
+          code: "FORBIDDEN",
+          message: "forbidden",
+          required,
+          have: {
+            permissions: Array.from(directPerms),
+            roles,
+            rbac: Array.from(granted),
+          },
+        });
       }
 
       return next();
