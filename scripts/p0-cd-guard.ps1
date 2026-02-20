@@ -10,5 +10,5 @@ if (Test-Path -LiteralPath (Join-Path $cwd 'package.json')) {
 Write-Host "[p0-cd-guard] WARN: package.json not found in current directory" -ForegroundColor Yellow
 Write-Host "[p0-cd-guard] Current: $cwd" -ForegroundColor Yellow
 Write-Host "[p0-cd-guard] Copy/Paste:" -ForegroundColor Cyan
-Write-Host (('cd "{0}"' -f $expected)) -ForegroundColor Cyan
+Write-Host "cd $expected" -ForegroundColor Cyan
 exit 1
