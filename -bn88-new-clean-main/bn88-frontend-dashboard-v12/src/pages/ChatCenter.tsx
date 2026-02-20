@@ -784,16 +784,17 @@ const ChatCenter: React.FC = () => {
       return;
     }
 
-    const base = apiBase.replace(/\/$/, "");
-    const apiRoot = /\/api$/i.test(base) ? base : `${base}/api`;
-    const url =
-      `${apiRoot}/live/${encodeURIComponent(tenant)}` +
+    const sseBase = apiBase.replace(/\/$/, "");
+    const sseUrl =
+      `${sseBase}/live/${encodeURIComponent(tenant)}` +
       `?token=${encodeURIComponent(token)}`;
+
+    console.debug("SSE url", sseUrl);
 
     const DEBUG_SSE =
       (import.meta as any)?.env?.VITE_DEBUG_SSE === "1" ||
       (window as any)?.localStorage?.getItem?.("DEBUG_SSE") === "1";
-    if (DEBUG_SSE) console.log("[SSE connect url]", url);
+    if (DEBUG_SSE) console.log("[SSE connect url]", sseUrl);
 
     const w = window as any;
 
@@ -803,7 +804,7 @@ const ChatCenter: React.FC = () => {
     } catch { }
     w.__CHAT_SSE__ = null;
 
-    const es = new EventSource(url);
+    const es = new EventSource(sseUrl);
     w.__CHAT_SSE__ = es;
 
     const extractBotId = (p: any): string | null =>
