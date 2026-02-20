@@ -112,6 +112,14 @@ const getMessageIntentCode = (m: ChatMessage): string | null => {
   );
 };
 
+const getLineContentKey = (msg: ChatMessage): string => {
+  const anyMsg = msg as any;
+  return String(
+    anyMsg.lineContentId ?? anyMsg.contentId ?? anyMsg.attachmentId ?? msg.id
+  );
+};
+
+
 const intentCodeToLabel = (code?: string | null): string | null => {
   if (!code) return null;
   const c = String(code).toLowerCase();
@@ -450,7 +458,8 @@ const ChatCenter: React.FC = () => {
   const fileUrlCreatedRef = useRef<Record<string, string>>({});
   const fetchLineFileUrl = useCallback(
     async (m: ChatMessage) => {
-      return fetchLineContentBlob(m.id);
+      const contentKey = getLineContentKey(m);
+      return fetchLineContentBlob(contentKey);
     },
     [fetchLineContentBlob]
   );
@@ -705,7 +714,12 @@ const ChatCenter: React.FC = () => {
             return next;
           });
         } catch (e) {
-          console.warn("load image blob failed", m.id, e);
+          const contentKey = getLineContentKey(m);
+          console.warn("load image blob failed", {
+            messageId: m.id,
+            contentKey,
+            error: e,
+          });
           const match = String((e as Error)?.message || "").match(/:(\d{3})$/);
           setImgErrorMap((prev) => ({
             ...prev,
@@ -2119,9 +2133,9 @@ const ChatCenter: React.FC = () => {
                           <div className="whitespace-pre-line">{m.text}</div>
                         )}
 
-                        {!imageUrl && imageErr === "401" ? (
+                        {!imageUrl && imageErr ? (
                           <div className="text-[11px] text-amber-300">
-                            โหลดรูปไม่ได้ (401)
+                            โหลดรูปไม่ได้ ({imageErr})
                           </div>
                         ) : !imageUrl ? (
                           <div className="text-[11px] text-zinc-400">
@@ -2201,8 +2215,14 @@ const ChatCenter: React.FC = () => {
                           fileUrlCreatedRef.current[m.id] = url;
                           setFileUrlMap((prev) => ({ ...prev, [m.id]: url }));
                         } catch (e) {
-                          console.warn("load file blob failed", m.id, e);
-                          toast.error("โหลดไฟล์ไม่สำเร็จ");
+                          const contentKey = getLineContentKey(m);
+                          console.warn("load file blob failed", {
+                            messageId: m.id,
+                            contentKey,
+                            error: e,
+                          });
+                          const match = String((e as Error)?.message || "").match(/:(\d{3})$/);
+                          toast.error(`โหลดไฟล์ไม่สำเร็จ (${match?.[1] ?? "ERR"})`);
                           return;
                         }
                       }
