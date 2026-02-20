@@ -38,7 +38,8 @@
     "check:env": "powershell -ExecutionPolicy Bypass -File ./scripts/check-env.ps1",
     "prisma:generate:safe": "prisma generate",
     "predev:backend": "npm run prisma:generate:safe",
-    "predev:port": "npm run prisma:generate:safe"
+    "predev:port": "npm run prisma:generate:safe",
+    "smoke:sse": "node ./scripts/smoke-sse.mjs"
   },
   "dependencies": {
     "@line/bot-sdk": "^10.5.0",
