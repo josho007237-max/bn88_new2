@@ -422,11 +422,7 @@ function trimSlash(s: string) {
 // IMPORTANT: baseURL ควรชี้ไปที่ "/api" (หรือ "http://localhost:3000/api")
 const ADMIN_TENANT = (import.meta as any).env?.VITE_TENANT || "bn9";
 
-export const API_BASE = trimSlash(
-  (import.meta as any).env?.VITE_API_BASE ||
-    (import.meta as any).env?.VITE_ADMIN_API_BASE ||
-    "https://api.bn9.app/api"
-);
+export const API_BASE = trimSlash((import.meta as any).env?.VITE_API_BASE || "/api");
 
 export const TENANT =
   (import.meta as any).env?.VITE_DEFAULT_TENANT ||
