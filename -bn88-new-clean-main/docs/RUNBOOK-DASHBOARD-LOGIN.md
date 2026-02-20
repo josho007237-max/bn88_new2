@@ -47,3 +47,11 @@ irm "http://127.0.0.1:3000/api/admin/bots" `
     "x-tenant" = "bn9"
   }
 ```
+
+## 6) Test CORS preflight (PowerShell)
+
+> ใช้ `curl.exe` แบบ one-liner (ไม่ใช้ `^` line continuation)
+
+```powershell
+curl.exe -i -X OPTIONS "http://127.0.0.1:3000/api/admin/auth/login" -H "Origin: http://localhost:5555" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type,authorization,x-tenant,x-admin-key"
+```
