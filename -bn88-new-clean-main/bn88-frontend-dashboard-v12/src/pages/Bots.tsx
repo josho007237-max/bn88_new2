@@ -21,7 +21,12 @@ export default function Bots() {
     setErr(null);
     try {
       const res = await api.bots();
-      const list: BotItem[] = Array.isArray((res as any)?.items) ? (res as any).items : [];
+      const listSource = (res as any)?.data?.items ?? (res as any)?.items;
+      const list: BotItem[] = Array.isArray(listSource) ? listSource : [];
+      console.debug("[Bots] load response", {
+        itemsCount: list.length,
+        hasDataEnvelope: Boolean((res as any)?.data),
+      });
       setItems(list);
     } catch (e: any) {
       setErr(e?.message || "โหลดรายการบอทไม่สำเร็จ");
