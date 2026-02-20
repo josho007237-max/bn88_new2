@@ -27,7 +27,8 @@ out/
 !.env.example
 
 # Logs
-logs/
+logs/*
+!logs/.gitkeep
 log/
 *.log
 *.log.*
@@ -92,3 +93,5 @@ public/uploads/
 *.cert
 secrets/
 .secrets/
+
+**/node_modules/
