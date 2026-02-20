@@ -901,6 +901,92 @@ const ChatCenter: React.FC = () => {
       const evType = outer?.type || evName;
       const payload = outer?.data ?? outer;
 
+      if (typeof evType === "string" && evType.startsWith("debug:")) {
+        const msg = `[SSE debug] ${evType}`;
+        if (DEBUG_SSE) console.log(msg, payload);
+        toast.success(msg);
+        return;
+      }
+
+      if (evType === "chat.message.created") {
+        const sessionId = String(payload?.sessionId ?? "").trim();
+        const messageId = String(payload?.messageId ?? "").trim();
+        const botId =
+          typeof payload?.botId === "string" && payload.botId.trim()
+            ? payload.botId.trim()
+            : selectedBotIdRef.current || "";
+        const messageTs =
+          typeof payload?.ts === "string" && payload.ts.trim()
+            ? payload.ts
+            : new Date().toISOString();
+        const text =
+          payload?.text === null || payload?.text === undefined
+            ? ""
+            : String(payload.text);
+        const direction = String(payload?.direction ?? "admin").toLowerCase();
+        const senderType: ChatMessage["senderType"] =
+          direction === "user" || direction === "bot" || direction === "admin"
+            ? direction
+            : "admin";
+
+        if (sessionId && messageId) {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    lastMessageAt: messageTs,
+                    lastText: text,
+                    lastDirection: direction,
+                  }
+                : s
+            )
+          );
+
+          setSelectedSession((prev) =>
+            prev && prev.id === sessionId
+              ? {
+                  ...prev,
+                  lastMessageAt: messageTs,
+                  lastText: text,
+                  lastDirection: direction,
+                }
+              : prev
+          );
+
+          if (selectedSessionIdRef.current === sessionId) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === messageId)) return prev;
+
+              const nextMessage: ChatMessage = {
+                id: messageId,
+                sessionId,
+                tenant,
+                botId: botId || "",
+                platform: null,
+                senderType,
+                text,
+                type: "TEXT",
+                createdAt: messageTs,
+              };
+
+              return [...prev, nextMessage];
+            });
+          }
+
+          if (DEBUG_SSE) {
+            console.log("[SSE handled] chat.message.created", {
+              tenant,
+              botId,
+              sessionId,
+              messageId,
+              direction,
+            });
+          }
+          return;
+        }
+      }
+
       void runRefresh(payload, evType);
     };
 
@@ -920,6 +1006,7 @@ const ChatCenter: React.FC = () => {
     // ใส่เผื่อไว้ (ไม่พังถ้าไม่มี)
     es.addEventListener("bot_message", handleEvent as any);
     es.addEventListener("chat:message:new", handleEvent as any);
+    es.addEventListener("chat.message.created", handleEvent as any);
     es.addEventListener("message:new", handleEvent as any);
 
     return () => {
