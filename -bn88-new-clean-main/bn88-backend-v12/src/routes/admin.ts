@@ -47,40 +47,6 @@ router.post(
   },
 );
 
-router.post(
-  "/debug/sse",
-  requirePermission(["viewReports"]),
-  (req: Request, res: Response) => {
-    const body = (req.body ?? {}) as {
-      tenant?: string;
-      type?: string;
-      data?: unknown;
-    };
-
-    const tenant =
-      typeof body.tenant === "string" && body.tenant.trim()
-        ? body.tenant.trim()
-        : "bn9";
-    const type =
-      typeof body.type === "string" && body.type.trim()
-        ? body.type.trim()
-        : "debug:test";
-    const data = body.data ?? { ok: true, ts: Date.now() };
-
-    if (process.env.DEBUG_SSE === "1") {
-      console.log("[SSE debug endpoint] /debug/sse", {
-        tenant,
-        type,
-        count: sseHub.count(tenant),
-      });
-    }
-
-    sseHub.emit(type, tenant, data);
-    return res.json({ ok: true });
-  },
-);
-
-
 async function getRuleOrThrow(ruleId: string) {
   const rule = await prisma.dailyRule.findUnique({
     where: { id: ruleId },
