@@ -373,6 +373,7 @@ if (config.ENABLE_ADMIN_API === "1") {
   app.use("/api/admin/bots", authGuard, adminBotsRouter);
   app.use("/api/admin/bots", authGuard, adminBotIntentsRouter);
   app.use("/api/admin/chat", authGuard, chatAdminRouter);
+  app.use("/api/admin/chats", authGuard, chatAdminRouter);
   app.use("/api/admin/lep", authGuard, lepAdminRouter);
   app.use("/api/admin/telegram", authGuard, telegramLiveAdminRouter);
   app.use("/api/admin/roles", authGuard, adminRolesRouter);

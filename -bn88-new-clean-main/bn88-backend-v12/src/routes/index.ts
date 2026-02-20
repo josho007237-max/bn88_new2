@@ -76,6 +76,7 @@ router.use("/admin/auth", adminAuthRouter);
 // ✅ ส่วน admin อื่น ๆ ค่อยโดน guard
 if (adminBotsRouter) router.use("/admin/bots", authGuard, adminBotsRouter);
 router.use("/admin/chat", authGuard, chatAdminRouter);
+router.use("/admin/chats", authGuard, chatAdminRouter);
 
 export default router;
 
