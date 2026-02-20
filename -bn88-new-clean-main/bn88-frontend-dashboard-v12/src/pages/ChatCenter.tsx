@@ -458,8 +458,7 @@ const ChatCenter: React.FC = () => {
   const fileUrlCreatedRef = useRef<Record<string, string>>({});
   const fetchLineFileUrl = useCallback(
     async (m: ChatMessage) => {
-      const contentKey = getLineContentKey(m);
-      return fetchLineContentBlob(contentKey);
+      return fetchLineContentBlob(m.id);
     },
     [fetchLineContentBlob]
   );
