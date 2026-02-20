@@ -14,20 +14,20 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Get-ProcessInfo {
-  param([Parameter(Mandatory = $true)][int]$Pid)
+  param([Parameter(Mandatory = $true)][int]$portPid)
 
-  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$Pid" -ErrorAction SilentlyContinue
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$portPid" -ErrorAction SilentlyContinue
   if ($null -ne $proc) {
     return [PSCustomObject]@{
-      Pid         = $Pid
+      Pid         = $portPid
       Name        = [string]$proc.Name
       CommandLine = [string]$proc.CommandLine
     }
   }
 
-  $p = Get-Process -Id $Pid -ErrorAction SilentlyContinue
+  $p = Get-Process -Id $portPid -ErrorAction SilentlyContinue
   return [PSCustomObject]@{
-    Pid         = $Pid
+    Pid         = $portPid
     Name        = [string]($p?.ProcessName ?? "")
     CommandLine = ""
   }
@@ -41,8 +41,8 @@ if ($pids.Count -eq 0) {
   exit 0
 }
 
-foreach ($pid in $pids) {
-  $info = Get-ProcessInfo -Pid $pid
+foreach ($portPid in $pids) {
+  $info = Get-ProcessInfo -portPid $portPid
   Write-Host ("Port {0} -> PID {1}" -f $Port, $info.Pid)
   Write-Host ("Name: {0}" -f $info.Name)
   if ([string]::IsNullOrWhiteSpace($info.CommandLine)) {
@@ -58,8 +58,8 @@ if (-not $Kill) {
 }
 
 $failed = $false
-foreach ($pid in $pids) {
-  & taskkill.exe /PID $pid /F | Out-Null
+foreach ($portPid in $pids) {
+  & taskkill.exe /PID $portPid /F | Out-Null
   if ($LASTEXITCODE -ne 0) { $failed = $true }
 }
 
