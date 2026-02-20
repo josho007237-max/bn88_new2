@@ -34,18 +34,29 @@ if ($bots.items.Count -le 0) { Fail "bots.items expected length > 0, got $($bots
 Write-Host "[smoke-all] SSE => $BaseUrl/api/live/$Tenant?token=<token> (curl -i -N, max-time 5s)"
 $curlCmd = if (Get-Command curl.exe -ErrorAction SilentlyContinue) { 'curl.exe' } elseif (Get-Command curl -ErrorAction SilentlyContinue) { 'curl' } else { $null }
 if (-not $curlCmd) {
-  Write-Host '[smoke-all] WARN: curl not found, skipping SSE check' -ForegroundColor Yellow
-} else {
-  $sseUrl = "$BaseUrl/api/live/$Tenant?token=$token"
-  $sseOutput = & $curlCmd -i -N --max-time 5 $sseUrl 2>&1
-  $sseText = ($sseOutput | Out-String)
-  if ($sseText -match 'HTTP/\S+\s+401' -or $sseText -match 'HTTP/\S+\s+403') {
-    Write-Host '[smoke-all] WARN: SSE auth pending' -ForegroundColor Yellow
-  } elseif ($sseText -match 'HTTP/\S+\s+200') {
-    Write-Host '[smoke-all] SSE probe returned HTTP 200' -ForegroundColor Green
-  } else {
-    Write-Host '[smoke-all] WARN: SSE probe did not return 200/401/403 (check manually)' -ForegroundColor Yellow
-  }
+  Fail 'curl not found, cannot run SSE/line-content smoke checks'
 }
 
-Write-Host '[smoke-all] OK: health, login, and bots checks passed' -ForegroundColor Green
+$sseUrl = "$BaseUrl/api/live/$Tenant?token=$token"
+$sseOutput = & $curlCmd -i -N --max-time 5 $sseUrl 2>&1
+$sseText = ($sseOutput | Out-String)
+if ($sseText -notmatch 'HTTP/\S+\s+200') {
+  Fail "SSE expected HTTP 200, got: $($sseText -split "`n" | Select-Object -First 1)"
+}
+if ($sseText -notmatch '(?i)content-type:\s*text/event-stream') {
+  Fail 'SSE missing Content-Type: text/event-stream'
+}
+Write-Host '[smoke-all] SSE probe returned HTTP 200 + text/event-stream' -ForegroundColor Green
+
+Write-Host "[smoke-all] line-content(FAKE_ID) => $BaseUrl/api/admin/chat/line-content/FAKE_ID"
+$lineOutput = & $curlCmd -i -sS -X GET "$BaseUrl/api/admin/chat/line-content/FAKE_ID" -H "Authorization: Bearer $token" -H "x-tenant: $Tenant" 2>&1
+$lineText = ($lineOutput | Out-String)
+if ($lineText -match 'HTTP/\S+\s+401' -or $lineText -match 'HTTP/\S+\s+403') {
+  Fail 'line-content FAKE_ID returned 401/403, expected 404'
+}
+if ($lineText -notmatch 'HTTP/\S+\s+404') {
+  Fail "line-content FAKE_ID expected HTTP 404, got: $($lineText -split "`n" | Select-Object -First 1)"
+}
+Write-Host '[smoke-all] line-content FAKE_ID returned 404 (as expected)' -ForegroundColor Green
+
+Write-Host '[smoke-all] OK: health, login, bots, SSE, and line-content checks passed' -ForegroundColor Green

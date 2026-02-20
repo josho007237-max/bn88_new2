@@ -213,6 +213,22 @@ const allowList = new Set(
     .filter(Boolean),
 );
 
+const localOriginPattern = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const defaultAllowedOrigins = new Set(["https://admin.bn9.app"]);
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (localOriginPattern.test(origin)) return cb(null, true);
+    if (defaultAllowedOrigins.has(origin)) return cb(null, true);
+    if (allowList.has(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-tenant", "x-admin-key"],
+};
+
 app.use(
   helmet({
     contentSecurityPolicy: false,
@@ -220,17 +236,8 @@ app.use(
   }),
 );
 
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin || allowList.has(origin)) return cb(null, true);
-      return cb(null, false);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-tenant"],
-  }),
-);
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 app.use(morgan("dev"));
 app.use(logger);

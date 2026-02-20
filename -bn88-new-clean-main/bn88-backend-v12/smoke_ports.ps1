@@ -13,15 +13,15 @@ if ($net) {
 }
 
 Write-Host "`n== PROCESS =="
-$pid = $null
+$pid3000 = $null
 if ($net) {
-  $pid = ($net | Select-Object -First 1).Line.Trim().Split()[-1]
+  $pid3000 = ($net | Select-Object -First 1).Line.Trim().Split()[-1]
 }
-if ($pid) {
+if ($pid3000) {
   try {
-    Get-Process -Id $pid
+    Get-Process -Id $pid3000
   } catch {
-    Write-Host "Process not found for PID $pid"
+    Write-Host "Process not found for PID $pid3000"
   }
 } else {
   Write-Host "No PID found for port $Port"

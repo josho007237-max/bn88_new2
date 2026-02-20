@@ -19,17 +19,17 @@ if ($pids.Count -eq 0) {
   exit 0
 }
 
-foreach ($pid in $pids) {
-  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$pid" -ErrorAction SilentlyContinue
+foreach ($portPid in $pids) {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$portPid" -ErrorAction SilentlyContinue
   $name = if ($proc) { [string]$proc.Name } else { "" }
   $cmd = if ($proc) { [string]$proc.CommandLine } else { "" }
 
   if ([string]::IsNullOrWhiteSpace($name)) {
-    $p = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    $p = Get-Process -Id $portPid -ErrorAction SilentlyContinue
     $name = [string]($p?.ProcessName ?? "")
   }
 
-  Write-Host ("Port {0} -> PID {1}" -f $Port, $pid)
+  Write-Host ("Port {0} -> PID {1}" -f $Port, $portPid)
   Write-Host ("Name: {0}" -f $name)
   if ([string]::IsNullOrWhiteSpace($cmd)) {
     Write-Host "CommandLine: (unavailable)"
