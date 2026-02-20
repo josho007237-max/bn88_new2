@@ -17,10 +17,24 @@ cd /path/to/bn88_new2
 cd .\-bn88-new-clean-main\bn88-backend-v12
 ```
 
+หรือใช้ path เต็ม (กันพลาด ENOENT ตอน `npm run typecheck`):
+
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12
+```
+
+จากนั้นเช็คให้ชัวร์ว่าอยู่โฟลเดอร์ที่มี `package.json`:
+
+```powershell
+Test-Path .\package.json
+npm run typecheck -- --pretty false
+```
+
 หรือใช้สคริปต์จาก repo root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\p0-jump-backend.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\p0-cd-guard.ps1
 ```
 
 ## 2) ตรวจ auth guard / permission ด้วย `rg -F`
