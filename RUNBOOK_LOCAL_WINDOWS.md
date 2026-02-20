@@ -23,9 +23,10 @@ cd .\-bn88-new-clean-main\bn88-backend-v12
 cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12
 ```
 
-จากนั้นเช็คให้ชัวร์ว่าอยู่โฟลเดอร์ที่มี `package.json`:
+จากนั้นเช็คให้ชัวร์ว่าอยู่โฟลเดอร์ที่มี `package.json` ก่อนรัน typecheck:
 
 ```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12
 Test-Path .\package.json
 npm run typecheck -- --pretty false
 ```
@@ -36,6 +37,9 @@ npm run typecheck -- --pretty false
 powershell -ExecutionPolicy Bypass -File .\scripts\p0-jump-backend.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\p0-cd-guard.ps1
 ```
+
+> หมายเหตุ: `p0-cd-guard.ps1` ใช้ได้เฉพาะ **Windows PowerShell** เท่านั้น.
+> ถ้าอยู่ใน WSL/CI/container ที่ไม่มี `powershell` หรือ `pwsh` ให้ข้าม guard script ได้เลย และใช้ `cd` + `Test-Path` ตามตัวอย่างด้านบนแทน.
 
 ## 2) ตรวจ auth guard / permission ด้วย `rg -F`
 
