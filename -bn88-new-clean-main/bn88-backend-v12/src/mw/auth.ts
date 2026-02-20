@@ -126,7 +126,6 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
   }
   const requestId = getRequestId(req);
   const DEBUG_AUTH_LOG = process.env.DEBUG_AUTH === "1";
-  const isLiveRequest = isLivePath(req);
   const { token, raw, source, queryProvided, queryAllowed } = getToken(req);
   const hasAuthHeader = source === "header";
   const authHeaderPrefix = hasAuthHeader ? raw.split(/\s+/)[0] : undefined;
@@ -136,15 +135,7 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
     reason: string,
     extra: Record<string, unknown> = {}
   ) => {
-    if (!DEBUG_AUTH_LOG || !isLiveRequest) return;
-    if (
-      reason !== "missing_token" &&
-      reason !== "malformed_token" &&
-      reason !== "invalid_signature" &&
-      reason !== "query_token_not_allowed"
-    ) {
-      return;
-    }
+    if (!DEBUG_AUTH_LOG) return;
     console.info("[DEBUG_AUTH]", reason, {
       guard: "authGuard",
       path: route,
@@ -201,7 +192,11 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
     (req as any).auth = session;
     // keep alias during migration to single auth source
     (req as any).admin = session;
-    logAuthDebug("ok", { reqAuth: toDebugAuth(session) });
+    logAuthDebug("ok", {
+      tokenSource: source,
+      decoded: toDebugAuth(session),
+      reqAuth: toDebugAuth(session),
+    });
     return next();
   } catch (err) {
     logAuthDebug("invalid_signature");

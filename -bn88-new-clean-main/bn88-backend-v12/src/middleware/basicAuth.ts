@@ -25,6 +25,21 @@ type AuthFromGuard = {
   [key: string]: any;
 };
 
+type AuthSource = "auth" | "admin" | "user" | "none";
+
+function pickAuthContext(req: Request): { auth?: AuthFromGuard; source: AuthSource } {
+  const fromAuth = (req as any).auth as AuthFromGuard | undefined;
+  if (fromAuth) return { auth: fromAuth, source: "auth" };
+
+  const fromAdmin = (req as any).admin as AuthFromGuard | undefined;
+  if (fromAdmin) return { auth: fromAdmin, source: "admin" };
+
+  const fromUser = (req as any).user as AuthFromGuard | undefined;
+  if (fromUser) return { auth: fromUser, source: "user" };
+
+  return { auth: undefined, source: "none" };
+}
+
 function norm(v: unknown): string {
   return String(v ?? "").trim().toLowerCase();
 }
@@ -101,11 +116,8 @@ export function requirePermission(required: PermissionName[]) {
     const requestId = getRequestId(req);
     const log = createRequestLogger(requestId);
 
-    // ใช้ req.auth เป็นหลัก และ fallback req.user/req.admin เพื่อความเข้ากันได้
-    const auth =
-      ((req as any).auth as AuthFromGuard | undefined) ??
-      ((req as any).user as AuthFromGuard | undefined) ??
-      ((req as any).admin as AuthFromGuard | undefined);
+    // ใช้ req.auth เป็นหลัก และ fallback ฟิลด์เดิมเพื่อความเข้ากันได้
+    const { auth, source: authSource } = pickAuthContext(req);
 
     const adminId = auth?.sub || auth?.id; // ✅ รองรับ sub เป็นหลัก
     let roles = (auth?.roles ?? []).map((r) => String(r));
@@ -128,6 +140,7 @@ export function requirePermission(required: PermissionName[]) {
         hasToken,
         adminId,
         roles,
+        authSource,
         reqAuth: toDebugAuth(auth),
         ...extra,
       });
@@ -138,6 +151,7 @@ export function requirePermission(required: PermissionName[]) {
         reason,
         adminId,
         roles,
+        authSource,
         permissions: auth?.permissions,
         authFields: authFieldNames,
         ...extra,
@@ -149,6 +163,7 @@ export function requirePermission(required: PermissionName[]) {
         route,
         required,
         tenant: tenantHeader || undefined,
+        authSource,
         reqAuth: toDebugAuth(auth),
       });
     }
@@ -166,12 +181,32 @@ export function requirePermission(required: PermissionName[]) {
       // 1) เช็คจาก permission claim ใน token ก่อน (เป็นแหล่งหลักตาม authGuard)
       const directPerms = permissionsFromClaims((auth?.permissions ?? []).map(String));
       if (directPerms.size > 0 && required.some((perm) => directPerms.has(perm))) {
+        if (DEBUG_AUTH_LOG) {
+          log.info("[DEBUG_AUTH] requirePermission allow", {
+            guard: "requirePermission",
+            route,
+            authSource,
+            decision: "token_permissions",
+            required,
+            granted: Array.from(directPerms),
+          });
+        }
         return next();
       }
 
       // 1.1) fallback role claim ใน token
       const claimPerms = permissionsFromRoles(roles);
       if (claimPerms.size > 0 && required.some((perm) => claimPerms.has(perm))) {
+        if (DEBUG_AUTH_LOG) {
+          log.info("[DEBUG_AUTH] requirePermission allow", {
+            guard: "requirePermission",
+            route,
+            authSource,
+            decision: "token_roles",
+            required,
+            granted: Array.from(claimPerms),
+          });
+        }
         return next();
       }
 
@@ -241,6 +276,17 @@ export function requirePermission(required: PermissionName[]) {
             roles,
             rbac: Array.from(granted),
           },
+        });
+      }
+
+      if (DEBUG_AUTH_LOG) {
+        log.info("[DEBUG_AUTH] requirePermission allow", {
+          guard: "requirePermission",
+          route,
+          authSource,
+          decision: "rbac",
+          required,
+          granted: Array.from(granted),
         });
       }
 
