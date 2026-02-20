@@ -8,6 +8,7 @@ export type PermissionName = "manageBots" | "manageCampaigns" | "viewReports";
 // ✅ map แบบไม่สนตัวพิมพ์ใหญ่/เล็ก
 const ROLE_PERMISSIONS: Record<string, PermissionName[]> = {
   admin: ["manageBots", "manageCampaigns", "viewReports"],
+  root: ["manageBots", "manageCampaigns", "viewReports"],
   editor: ["manageBots", "manageCampaigns", "viewReports"],
   viewer: ["viewReports"],
   // superadmin จะ bypass ทั้งหมดใน requirePermission
