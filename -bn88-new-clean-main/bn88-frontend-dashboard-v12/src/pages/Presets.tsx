@@ -1,25 +1,22 @@
 // src/pages/Presets.tsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { API } from "../lib/api";
 
-export default function Presets({ tenant }: { tenant: string }) {
+export default function Presets({ tenant: _tenant }: { tenant: string }) {
+  void _tenant;
   const [items, setItems] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
 
   const load = async () => {
-    const res = await axios.get(`/api/admin/ai/presets`, {
-      headers: { "x-tenant": tenant },
-    });
+    const res = await API.get(`/admin/ai/presets`);
     setItems(res.data.items || []);
   };
 
   useEffect(() => { load(); }, []);
 
   const create = async () => {
-    await axios.post(`/api/admin/ai/presets`, { name, systemPrompt }, {
-      headers: { "x-tenant": tenant },
-    });
+    await API.post(`/admin/ai/presets`, { name, systemPrompt });
     setName(""); setSystemPrompt("");
     load();
   };

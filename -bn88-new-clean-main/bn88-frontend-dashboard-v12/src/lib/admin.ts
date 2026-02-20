@@ -1,6 +1,6 @@
+import { clearToken, getAdminAuthHeaders, getToken, setToken } from "./api";
 // src/lib/admin.ts
 const BASE = import.meta.env.VITE_API_BASE || "/api";
-const TENANT = import.meta.env.VITE_TENANT || "bn9";
 
 export type LoginResp = { token: string };
 export type BotRow = {
@@ -21,27 +21,24 @@ export type BotsResp = { ok: boolean; items: BotRow[] };
 
 export const auth = {
   get token() {
-    return localStorage.getItem("bn9_jwt") || "";
+    return getToken();
   },
   set token(v: string) {
-    localStorage.setItem("bn9_jwt", v);
+    setToken(v);
   },
   clear() {
-    localStorage.removeItem("bn9_jwt");
+    clearToken();
   },
 };
 
-function h() {
-  const headers: Record<string, string> = { "x-tenant": TENANT };
-  if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
-  return headers;
+function h(extra: Record<string, string> = {}) {
+  return getAdminAuthHeaders(extra);
 }
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
-      ...h(),
+      ...h({ "Content-Type": "application/json" }),
       ...(init?.headers || {}),
     },
   });
@@ -52,7 +49,7 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 export async function login(email: string, password: string) {
   const res = await fetch(`${BASE}/admin/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-tenant": TENANT },
+    headers: h({ "Content-Type": "application/json" }),
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) throw new Error(`login_failed: ${res.status}`);

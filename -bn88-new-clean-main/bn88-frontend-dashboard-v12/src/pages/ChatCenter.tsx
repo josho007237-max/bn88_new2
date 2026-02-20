@@ -47,8 +47,9 @@ import {
   createEngagementMessage,
   updateEngagementMessage,
   deleteEngagementMessage,
-  getToken,
   TENANT,
+  getToken,
+  getAdminAuthHeaders,
   fetchLineContentObjectUrl as fetchLineContentObjectUrlViaApi,
   downloadObjectUrl,
 } from "../lib/api";
@@ -938,13 +939,7 @@ const ChatCenter: React.FC = () => {
 
     void fetchMessages(s.id);
   }
-  const getAuthHeaders = () => {
-    const h: Record<string, string> = {};
-    const token = getToken();
-    if (token) h["Authorization"] = `Bearer ${token}`;
-    if (TENANT) h["x-tenant"] = TENANT;
-    return h;
-  };
+  const getAuthHeaders = () => getAdminAuthHeaders();
 
   const handleSendReply = async () => {
     if (!selectedSession) return;
