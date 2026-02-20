@@ -399,7 +399,7 @@ Get-NetTCPConnection -LocalPort 3000 |
 
 ## 🔒 PowerShell Best Practice
 
-⚠️ **Important:** Always use `$procId` instead of `$pid`
+⚠️ **Important:** Always use `$procId`/`$pid3000`/`$portPid` instead of `$pid`
 
 ```powershell
 # ✅ CORRECT
@@ -407,11 +407,17 @@ $procId = $connection.OwningProcess
 Stop-Process -Id $procId -Force
 
 # ❌ WRONG - $PID is reserved in PowerShell
-$pid = $connection.OwningProcess
-Stop-Process -Id $pid -Force
+$pid3000 = $connection.OwningProcess
+Stop-Process -Id $pid3000 -Force
 ```
 
 `$PID` is a PowerShell automatic variable (current PowerShell process ID).
+
+```powershell
+# Example: inspect PID that is listening on port 3000
+$pid3000 = (Get-NetTCPConnection -State Listen -LocalPort 3000).OwningProcess
+Get-CimInstance Win32_Process -Filter "ProcessId=$pid3000" | Select ProcessId,CommandLine | Format-List
+```
 
 ## 📚 More Information
 
