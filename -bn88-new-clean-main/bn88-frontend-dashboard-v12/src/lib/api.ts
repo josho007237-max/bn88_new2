@@ -440,39 +440,6 @@ const LEGACY_TOKEN_KEYS = [
   "BN9_ADMIN_JWT",
 ];
 
-const INTERCEPTOR_TOKEN_KEYS = ["token", "access_token", "authToken", "jwt"];
-const INTERCEPTOR_TENANT_KEYS = ["tenant", "x-tenant"];
-
-function readStorageFirst(keys: string[]): string {
-  try {
-    for (const key of keys) {
-      const value = String(localStorage.getItem(key) || "").trim();
-      if (value) return value;
-    }
-  } catch {
-    // ignore
-  }
-  return "";
-}
-
-function getInterceptorToken(): string {
-  return readStorageFirst(INTERCEPTOR_TOKEN_KEYS) || getToken();
-}
-
-function getInterceptorTenant(): string {
-  return readStorageFirst(INTERCEPTOR_TENANT_KEYS) || TENANT || "bn9";
-}
-
-function shouldAttachAdminHeaders(url?: string): boolean {
-  const raw = String(url || "").trim();
-  if (!raw) return false;
-
-  const withoutHost = raw.replace(/^https?:\/\/[^/]+/i, "");
-  const pathOnly = withoutHost.split("?")[0] || "";
-
-  return pathOnly.startsWith("/api/admin/") || pathOnly.startsWith("/admin/");
-}
-
 /* ================================ Token Utils ================================ */
 
 export function getToken(): string {
@@ -573,8 +540,8 @@ export function getLineContentUrl(id: string) {
 }
 
 export function getAdminAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  const headers: Record<string, string> = { "x-tenant": getInterceptorTenant() };
-  const token = getInterceptorToken();
+  const headers: Record<string, string> = { "x-tenant": TENANT };
+  const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   return { ...headers, ...extra };
 }
@@ -633,15 +600,11 @@ export function downloadObjectUrl(url: string, filename?: string) {
 
 API.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
   const headers = (cfg.headers ?? {}) as AxiosRequestHeaders;
-  const fullUrl = `${String(cfg.baseURL || "")}${String(cfg.url || "")}`;
 
-  if (shouldAttachAdminHeaders(fullUrl)) {
-    const token = getInterceptorToken();
-    const tenant = getInterceptorTenant();
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-    if (token) headers.Authorization = `Bearer ${token}`;
-    headers["x-tenant"] = tenant || "bn9";
-  }
+  headers["x-tenant"] = TENANT;
 
   cfg.headers = headers;
   return cfg;
