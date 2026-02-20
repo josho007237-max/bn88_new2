@@ -8,19 +8,42 @@ import { sseHub } from "./lib/sseHub";
  */
 export function sseHandler(req: Request, res: Response) {
   const tenant = (req.params as any).tenant || "bn9";
+  const debugSse = process.env.DEBUG_SSE === "1";
+
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  (res as any).flushHeaders();
+  res.write(":ok\n\n");
+  (res as any).flush?.();
 
   // ✅ ผูก connection นี้เข้ากับ hub ตัวเดียวกับที่ webhook ใช้ broadcast
   const clientId = sseHub.addClient(tenant, res);
+  const heartbeat = setInterval(() => {
+    res.write(":\n\n");
+    (res as any).flush?.();
+  }, 15000);
 
-  console.log("[SSE route] addClient", {
-    hub: (sseHub as any).__id,
-    tenant,
-    clientId,
-    clients: sseHub.count(tenant),
+  if (debugSse) {
+    console.log("[SSE route] connect", {
+      tenant,
+      clientId,
+      clients: sseHub.count(tenant),
+    });
+  }
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    sseHub.removeClient(tenant, clientId);
+
+    if (debugSse) {
+      console.log("[SSE route] disconnect", {
+        tenant,
+        clientId,
+        clients: sseHub.count(tenant),
+      });
+    }
   });
-
-  // ✅ ไม่ต้องมี clients map / heartbeat / send ในไฟล์นี้แล้ว
-  // เพราะ sseHub.addClient ทำให้หมดแล้ว
 }
 
 /**
