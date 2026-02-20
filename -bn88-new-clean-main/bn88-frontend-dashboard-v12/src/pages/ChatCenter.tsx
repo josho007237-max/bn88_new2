@@ -50,7 +50,7 @@ import {
   TENANT,
   getToken,
   getAdminAuthHeaders,
-  fetchLineContentObjectUrl as fetchLineContentObjectUrlViaApi,
+  fetchLineContentBlob as fetchLineContentBlobViaApi,
   downloadObjectUrl,
 } from "../lib/api";
 
@@ -438,10 +438,9 @@ const ChatCenter: React.FC = () => {
   const [imgUrlMap, setImgUrlMap] = useState<Record<string, string>>({});
   const [imgErrorMap, setImgErrorMap] = useState<Record<string, string>>({});
   const imgUrlCreatedRef = useRef<Record<string, string>>({});
-  const fetchLineContentObjectUrl = useCallback(
-    async (messageId: string): Promise<string> => {
-      const { url } = await fetchLineContentObjectUrlViaApi(messageId);
-      return url;
+  const fetchLineContentBlob = useCallback(
+    async (messageId: string): Promise<Blob> => {
+      return fetchLineContentBlobViaApi(messageId);
     },
     []
   );
@@ -451,9 +450,9 @@ const ChatCenter: React.FC = () => {
   const fileUrlCreatedRef = useRef<Record<string, string>>({});
   const fetchLineFileUrl = useCallback(
     async (m: ChatMessage) => {
-      return fetchLineContentObjectUrl(m.id);
+      return fetchLineContentBlob(m.id);
     },
-    [fetchLineContentObjectUrl]
+    [fetchLineContentBlob]
   );
 
   // ล้าง objectURL เก่าทุกครั้งที่เปลี่ยน session (กัน memory leak + กันรูปค้าง)
@@ -687,7 +686,8 @@ const ChatCenter: React.FC = () => {
         if (imgUrlCreatedRef.current[m.id]) continue;
 
         try {
-          const url = await fetchLineContentObjectUrl(m.id);
+          const blob = await fetchLineFileUrl(m);
+          const url = URL.createObjectURL(blob);
 
           if (cancelled) {
             URL.revokeObjectURL(url);
@@ -721,7 +721,7 @@ const ChatCenter: React.FC = () => {
   }, [
     messages,
     selectedSession?.platform,
-    fetchLineContentObjectUrl,
+    fetchLineFileUrl,
   ]);
 
   /* -------------------- โหลด sessions ตามบอทที่เลือกอยู่ -------------------- */
@@ -2194,7 +2194,8 @@ const ChatCenter: React.FC = () => {
                       let url = fileUrlCreatedRef.current[m.id];
                       if (!url) {
                         try {
-                          url = await fetchLineFileUrl(m);
+                          const blob = await fetchLineFileUrl(m);
+                          url = URL.createObjectURL(blob);
                           fileUrlCreatedRef.current[m.id] = url;
                           setFileUrlMap((prev) => ({ ...prev, [m.id]: url }));
                         } catch (e) {

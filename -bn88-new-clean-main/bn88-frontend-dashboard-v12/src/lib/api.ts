@@ -550,12 +550,16 @@ function buildAuthHeaders(): HeadersInit {
   return getAdminAuthHeaders();
 }
 
-export async function getLineContentBlob(messageId: string): Promise<Blob> {
+export async function fetchLineContentBlob(messageId: string): Promise<Blob> {
   const base = API_BASE || "/api";
   const url = `${base}${getLineContentPath(messageId)}`;
   const res = await fetch(url, { headers: buildAuthHeaders() });
   if (!res.ok) throw new Error(`line_content_fetch_failed:${res.status}`);
   return await res.blob();
+}
+
+export async function getLineContentBlob(messageId: string): Promise<Blob> {
+  return fetchLineContentBlob(messageId);
 }
 
 export async function fetchLineContentObjectUrl(messageId: string): Promise<{
