@@ -1,7 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$configPath = Join-Path $repoRoot '-bn88-new-clean-main\cloudflared\config-bn88-api.yml'
+$rootFromScript = Split-Path -Parent $PSScriptRoot
+$repoRoot = Join-Path $rootFromScript '-bn88-new-clean-main'
+if (-not (Test-Path -LiteralPath $repoRoot)) {
+  $repoRoot = $rootFromScript
+}
+$configPath = Join-Path $repoRoot 'cloudflared\config-bn88-api.yml'
 $cloudflaredDir = Join-Path $env:USERPROFILE '.cloudflared'
 
 $portOk = Test-NetConnection -ComputerName '127.0.0.1' -Port 3000 -InformationLevel Quiet
