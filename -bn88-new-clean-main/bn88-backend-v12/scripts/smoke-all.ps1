@@ -2,7 +2,8 @@ param(
   [string]$BaseUrl = 'http://127.0.0.1:3000',
   [string]$Email = 'root@bn9.local',
   [string]$Password = 'bn9@12345',
-  [string]$Tenant = 'bn9'
+  [string]$Tenant = 'bn9',
+  [string]$LineContentId = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,15 +49,45 @@ if ($sseText -notmatch '(?i)content-type:\s*text/event-stream') {
 }
 Write-Host '[smoke-all] SSE probe returned HTTP 200 + text/event-stream' -ForegroundColor Green
 
-Write-Host "[smoke-all] line-content(FAKE_ID) => $BaseUrl/api/admin/chat/line-content/FAKE_ID"
+Write-Host "[smoke-all] line-content(FAKE_ID, Authorization header) => $BaseUrl/api/admin/chat/line-content/FAKE_ID"
 $lineOutput = & $curlCmd -i -sS -X GET "$BaseUrl/api/admin/chat/line-content/FAKE_ID" -H "Authorization: Bearer $token" -H "x-tenant: $Tenant" 2>&1
 $lineText = ($lineOutput | Out-String)
 if ($lineText -match 'HTTP/\S+\s+401' -or $lineText -match 'HTTP/\S+\s+403') {
-  Fail 'line-content FAKE_ID returned 401/403, expected 404'
+  Fail 'line-content FAKE_ID(header) returned 401/403, expected 404'
 }
 if ($lineText -notmatch 'HTTP/\S+\s+404') {
-  Fail "line-content FAKE_ID expected HTTP 404, got: $($lineText -split "`n" | Select-Object -First 1)"
+  Fail "line-content FAKE_ID(header) expected HTTP 404, got: $($lineText -split "`n" | Select-Object -First 1)"
 }
-Write-Host '[smoke-all] line-content FAKE_ID returned 404 (as expected)' -ForegroundColor Green
+Write-Host '[smoke-all] line-content FAKE_ID(header) returned 404 (as expected)' -ForegroundColor Green
+
+Write-Host "[smoke-all] line-content(FAKE_ID, query token+tenant) => $BaseUrl/api/admin/chat/line-content/FAKE_ID?token=...&tenant=$Tenant"
+$lineQueryUrl = "$BaseUrl/api/admin/chat/line-content/FAKE_ID?token=$([uri]::EscapeDataString($token))&tenant=$([uri]::EscapeDataString($Tenant))"
+$lineOutputQuery = & $curlCmd -i -sS -X GET $lineQueryUrl 2>&1
+$lineTextQuery = ($lineOutputQuery | Out-String)
+if ($lineTextQuery -match 'HTTP/\S+\s+401' -or $lineTextQuery -match 'HTTP/\S+\s+403') {
+  Fail 'line-content FAKE_ID(query) returned 401/403, expected 404'
+}
+if ($lineTextQuery -notmatch 'HTTP/\S+\s+404') {
+  Fail "line-content FAKE_ID(query) expected HTTP 404, got: $($lineTextQuery -split "`n" | Select-Object -First 1)"
+}
+Write-Host '[smoke-all] line-content FAKE_ID(query) returned 404 (as expected)' -ForegroundColor Green
+
+if (-not [string]::IsNullOrWhiteSpace($LineContentId)) {
+  Write-Host "[smoke-all] line-content(real id) => $BaseUrl/api/admin/chat/line-content/$LineContentId"
+  $realOutput = & $curlCmd -i -sS -X GET "$BaseUrl/api/admin/chat/line-content/$LineContentId" -H "Authorization: Bearer $token" -H "x-tenant: $Tenant" 2>&1
+  $realText = ($realOutput | Out-String)
+  if ($realText -match 'HTTP/\S+\s+401' -or $realText -match 'HTTP/\S+\s+403') {
+    Fail 'line-content real-id returned 401/403'
+  }
+  if ($realText -notmatch 'HTTP/\S+\s+200') {
+    Fail "line-content real-id expected HTTP 200, got: $($realText -split "`n" | Select-Object -First 1)"
+  }
+  if ($realText -notmatch '(?i)content-type:\s*(image/|application/octet-stream)') {
+    Fail 'line-content real-id missing image/* or application/octet-stream content-type'
+  }
+  Write-Host '[smoke-all] line-content real-id returned valid binary content-type' -ForegroundColor Green
+} else {
+  Write-Host '[smoke-all] WARN: LineContentId not provided; skip real-id content-type check' -ForegroundColor Yellow
+}
 
 Write-Host '[smoke-all] OK: health, login, bots, SSE, and line-content checks passed' -ForegroundColor Green
