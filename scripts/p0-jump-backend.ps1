@@ -4,22 +4,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$mainRoot = Join-Path $RepoRoot '-bn88-new-clean-main'
-if (-not (Test-Path $mainRoot)) {
-  Write-Host "[p0-jump-backend] not found: $mainRoot"
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$candidates = @(
+  (Join-Path $repoRoot '-bn88-new-clean-main\bn88-backend-v12'),
+  (Join-Path $repoRoot 'bn88-backend-v12')
+)
+
+$backend = $candidates |
+  Where-Object { Test-Path -LiteralPath (Join-Path $_ 'package.json') } |
+  Select-Object -First 1
+
+if (-not $backend) {
+  Write-Host "[p0-jump-backend] backend not found (missing package.json in candidates)" -ForegroundColor Yellow
+  Write-Host "[p0-jump-backend] please cd to the correct backend path and run again" -ForegroundColor Yellow
   exit 1
 }
 
-$hits = Get-ChildItem -LiteralPath $mainRoot -Directory -Recurse -Depth 3 -ErrorAction SilentlyContinue |
-  Where-Object { $_.Name -eq 'bn88-backend-v12' } |
-  Select-Object -ExpandProperty FullName -Unique
-
-if (-not $hits -or $hits.Count -eq 0) {
-  Write-Host "[p0-jump-backend] bn88-backend-v12 not found under $mainRoot"
-  exit 1
-}
-
-$backend = $hits[0]
 Write-Host "[p0-jump-backend] backend path: $backend"
 Set-Location -LiteralPath $backend
 Write-Host "[p0-jump-backend] cwd: $(Get-Location)"
