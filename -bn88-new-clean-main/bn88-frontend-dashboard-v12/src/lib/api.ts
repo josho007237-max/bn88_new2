@@ -539,11 +539,15 @@ export function getLineContentUrl(id: string) {
   return withTokenAndTenant(`${base}${getLineContentPath(id)}`, TENANT);
 }
 
-function buildAuthHeaders(): HeadersInit {
+export function getAdminAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = { "x-tenant": TENANT };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
+  return { ...headers, ...extra };
+}
+
+function buildAuthHeaders(): HeadersInit {
+  return getAdminAuthHeaders();
 }
 
 export async function getLineContentBlob(messageId: string): Promise<Blob> {

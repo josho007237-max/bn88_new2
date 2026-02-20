@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getAdminAuthHeaders } from "../lib/api";
 
 /** ---------- CONFIG ---------- */
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
-const getToken = () => localStorage.getItem("token") ?? "";
-const getTenant = () => localStorage.getItem("tenant") ?? "bn9";
 
 type Preset = {
   id: string;
@@ -36,9 +35,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-      "x-tenant": getTenant(),
+      ...getAdminAuthHeaders({ "Content-Type": "application/json" }),
       ...(init?.headers || {}),
     },
   });
