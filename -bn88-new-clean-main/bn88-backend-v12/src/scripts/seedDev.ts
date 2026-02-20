@@ -4,6 +4,10 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+type AdminUserModelWithOptionalEnabled = {
+  update?: (args: { where: { id: string }; data: { enabled: boolean } }) => Promise<unknown>;
+};
+
 async function main() {
   const email = process.env.DEV_ADMIN_EMAIL || "root@bn9.local";
   const password = process.env.DEV_ADMIN_PASSWORD || "bn9@12345";
@@ -27,24 +31,18 @@ async function main() {
 
   // compatibility: if schema has "enabled" column, keep root admin enabled in dev
   try {
- codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
- codex/audit-and-fix-plan-for-bn88-backend-v12-ffzxx8
-main
-    const adminUserModel = (prisma as any).adminUser;
+    const adminUserModel = prisma.adminUser as unknown as AdminUserModelWithOptionalEnabled;
     if (adminUserModel?.update) {
       await adminUserModel.update({
         where: { id: admin.id },
         data: { enabled: true },
       });
     }
- codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
     await prisma.$executeRawUnsafe(
       'UPDATE "AdminUser" SET "enabled" = 1 WHERE "id" = ? OR "email" = ?',
       admin.id,
       email,
     );
- main
- main
   } catch {
     // current schema may not have enabled column
   }

@@ -216,7 +216,9 @@ const allowList = new Set(
 const localOriginPattern = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 const defaultAllowedOrigins = new Set(["https://admin.bn9.app"]);
 
-const corsOptions: cors.CorsOptions = {
+type CorsOptionsInput = NonNullable<Parameters<typeof cors>[0]>;
+
+const corsOptions: CorsOptionsInput = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     if (localOriginPattern.test(origin)) return cb(null, true);
@@ -373,6 +375,7 @@ if (config.ENABLE_ADMIN_API === "1") {
   app.use("/api/admin/bots", authGuard, adminBotsRouter);
   app.use("/api/admin/bots", authGuard, adminBotIntentsRouter);
   app.use("/api/admin/chat", authGuard, chatAdminRouter);
+  app.use("/api/admin/chats", authGuard, chatAdminRouter);
   app.use("/api/admin/lep", authGuard, lepAdminRouter);
   app.use("/api/admin/telegram", authGuard, telegramLiveAdminRouter);
   app.use("/api/admin/roles", authGuard, adminRolesRouter);
