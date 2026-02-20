@@ -246,6 +246,8 @@ app.use(logger);
 app.use(
   compression({
     filter: (req, res) => {
+      const accept = String(req.headers.accept || "");
+      if (accept.includes("text/event-stream")) return false;
       if (req.path.startsWith("/api/live/")) return false;
       return compression.filter(req, res as any);
     },
