@@ -4,6 +4,10 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+type AdminUserModelWithOptionalEnabled = {
+  update?: (args: { where: { id: string }; data: { enabled: boolean } }) => Promise<unknown>;
+};
+
 async function main() {
   const email = process.env.DEV_ADMIN_EMAIL || "root@bn9.local";
   const password = process.env.DEV_ADMIN_PASSWORD || "bn9@12345";
