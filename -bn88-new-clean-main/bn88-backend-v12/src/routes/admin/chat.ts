@@ -588,6 +588,7 @@ router.patch(
     try {
       const tenant = getTenant(req);
       const id = String(req.params.id || "").trim();
+      const debugLineContent = process.env.DEBUG_LINE_CONTENT === "1";
 
       const parsed = updateSessionMetaSchema.safeParse(req.body ?? {});
       if (!parsed.success) {
@@ -849,6 +850,7 @@ router.get(
     try {
       const tenant = getTenant(req);
       const id = String(req.params.id || "").trim();
+      const debugLineContent = process.env.DEBUG_LINE_CONTENT === "1";
 
       if (!id) {
         return res
@@ -856,81 +858,51 @@ router.get(
           .json({ ok: false, message: "line_message_id_required" });
       }
 
-      // 1) ✅ ถ้า frontend ส่ง m.id (ChatMessage.id) -> หา message ด้วย id ก่อน
+      let lookupMode = "chatMessage.id";
+
+      // 1) หาโดย ChatMessage.id ก่อน
       let msg = await prisma.chatMessage.findFirst({
         where: { id, tenant },
         select: {
           botId: true,
           platform: true,
-          attachmentMeta: true,
+          platformMessageId: true,
         },
       });
 
-      // 2) ถ้าไม่เจอ ค่อย fallback หาโดย attachmentMeta.messageId (กรณีส่ง LINE messageId มา)
+      // 2) ถ้าไม่เจอ ค่อยหาโดย platformMessageId
       if (!msg) {
+        lookupMode = "platformMessageId";
         msg = await prisma.chatMessage.findFirst({
           where: {
             tenant,
             platform: "line",
-            OR: [
-              { platformMessageId: id },
-              {
-                attachmentMeta: {
-                  // ✅ SQLite: path ต้องเป็น string
-                  path: "messageId",
-                  equals: id,
-                } as any,
-              },
-              {
-                attachmentMeta: {
-                  path: "lineMessageId",
-                  equals: id,
-                } as any,
-              },
-              {
-                attachmentMeta: {
-                  path: "contentMessageId",
-                  equals: id,
-                } as any,
-              },
-              {
-                attachmentMeta: {
-                  path: "contentId",
-                  equals: id,
-                } as any,
-              },
-              {
-                attachmentMeta: {
-                  path: "providerMessageId",
-                  equals: id,
-                } as any,
-              },
-            ],
+            platformMessageId: id,
           },
-          select: { botId: true, platform: true, attachmentMeta: true },
+          select: { botId: true, platform: true, platformMessageId: true },
           orderBy: { createdAt: "desc" },
         });
       }
 
       if (!msg) {
-        if (process.env.DEBUG_LINE_CONTENT === "1") {
+        if (debugLineContent) {
           log.info("[line-content] lookup miss", {
             tenant,
             id,
-            lookedUpFields: [
-              "chatMessage.id",
-              "platformMessageId",
-              "attachmentMeta.messageId",
-              "attachmentMeta.lineMessageId",
-              "attachmentMeta.contentMessageId",
-              "attachmentMeta.contentId",
-              "attachmentMeta.providerMessageId",
-            ],
+            lookedUpFields: ["chatMessage.id", "platformMessageId"],
           });
         }
         return res
           .status(404)
           .json({ ok: false, message: "line_message_not_found" });
+      }
+
+      if (debugLineContent) {
+        log.info("[line-content] lookup hit", {
+          tenant,
+          id,
+          lookupMode,
+        });
       }
 
       if (msg.platform !== "line") {
@@ -939,11 +911,7 @@ router.get(
           .json({ ok: false, message: "not_a_line_message" });
       }
 
-      // ดึง LINE messageId จาก meta (หรือถ้า fallback แล้ว id คือ LINE messageId ก็ใช้ id)
-      const meta: any = msg.attachmentMeta ?? {};
-      const lineMessageId: string = String(
-        meta.messageId || meta.lineMessageId || meta.contentMessageId || id,
-      ).trim();
+      const lineMessageId: string = String(msg.platformMessageId || id).trim();
 
       if (!lineMessageId) {
         return res.status(400).json({
@@ -993,12 +961,6 @@ router.get(
 
       res.setHeader("Content-Type", contentType);
 
-      const fileName: string | undefined = meta.fileName;
-      if (fileName) {
-        // ปลอดภัยกว่า encode เฉย ๆ นิดนึง (กัน quote)
-        const safeName = encodeURIComponent(fileName).replace(/%22/g, "");
-        res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
-      }
 
       return res.send(buf);
     } catch (err: any) {
