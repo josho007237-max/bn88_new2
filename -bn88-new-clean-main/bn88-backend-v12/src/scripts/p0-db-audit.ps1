@@ -10,7 +10,7 @@ function CheckTable($table) {
   $sql = "SELECT botId, COUNT(*) AS cnt FROM $table GROUP BY botId HAVING cnt > 1;"
   $result = & sqlite3.exe $dbPath $sql
   if ($result) {
-    Write-Host "Duplicate entries in $table:" -ForegroundColor Yellow
+    Write-Host "Duplicate entries in ${table}:" -ForegroundColor Yellow
     $result -split "\n" | ForEach-Object {
       $parts = $_ -split "\|"
       $botId = $parts[0]
