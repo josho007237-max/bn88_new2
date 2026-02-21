@@ -26,6 +26,9 @@ const QUERY_TOKEN_ALLOWED_PREFIXES = ["/api/live/", "/api/admin/chat/line-conten
 
 function isQueryTokenAllowed(req: Request): boolean {
   const url = (req.originalUrl || req.url || "").trim();
+  if (url.startsWith("/api/live/")) {
+    return process.env.ALLOW_SSE_QUERY_TOKEN === "1";
+  }
   return QUERY_TOKEN_ALLOWED_PREFIXES.some((prefix) => url.startsWith(prefix));
 }
 

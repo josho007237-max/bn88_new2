@@ -25,18 +25,11 @@ type AuthFromGuard = {
   [key: string]: any;
 };
 
-type AuthSource = "auth" | "admin" | "user" | "none";
+type AuthSource = "auth" | "none";
 
 function pickAuthContext(req: Request): { auth?: AuthFromGuard; source: AuthSource } {
   const fromAuth = (req as any).auth as AuthFromGuard | undefined;
   if (fromAuth) return { auth: fromAuth, source: "auth" };
-
-  const fromAdmin = (req as any).admin as AuthFromGuard | undefined;
-  if (fromAdmin) return { auth: fromAdmin, source: "admin" };
-
-  const fromUser = (req as any).user as AuthFromGuard | undefined;
-  if (fromUser) return { auth: fromUser, source: "user" };
-
   return { auth: undefined, source: "none" };
 }
 
