@@ -647,3 +647,43 @@ If you encounter issues:
 3. Check application logs
 4. Review GitHub issues
 5. Consult SETUP.md troubleshooting section
+
+## ✅ Verification (line-content / SSE / LINE webhook)
+
+### 1) Verify LINE content proxy lookup (ChatMessage.id + LINE message id)
+
+```powershell
+# Case A: ใช้ ChatMessage.id
+curl.exe -i "http://127.0.0.1:3000/api/admin/chat/line-content/<CHAT_MESSAGE_ID>" -H "Authorization: Bearer <TOKEN>" -H "x-tenant: bn9"
+
+# Case B: ใช้ providerMessageId/lineMessageId
+curl.exe -i "http://127.0.0.1:3000/api/admin/chat/line-content/<LINE_MESSAGE_ID>" -H "Authorization: Bearer <TOKEN>" -H "x-tenant: bn9"
+
+# เปิด debug log ของ line-content
+$env:DEBUG_LINE_CONTENT="1"
+```
+
+### 2) Verify SSE auth via query token (EventSource-compatible)
+
+```powershell
+# เปิดก่อนรัน backend
+$env:ALLOW_SSE_QUERY_TOKEN="1"
+
+# smoke script
+./scripts/smoke_sse.ps1 -BaseUrl "http://127.0.0.1:3000" -Tenant "bn9" -Token "<TOKEN>"
+```
+
+### 3) Verify admin RBAC path (login -> bots -> bots/:id/secrets)
+
+```powershell
+./scripts/smoke_admin.ps1 -BaseUrl "http://127.0.0.1:3000" -Email "admin@bn88.local" -Password "Admin1234!"
+```
+
+### 4) Verify LINE webhook still works
+
+```powershell
+# health check webhook endpoint
+curl.exe -i "http://127.0.0.1:3000/api/webhooks/line"
+
+# ดู log ขณะยิง webhook จริงจาก LINE console/tunnel
+```

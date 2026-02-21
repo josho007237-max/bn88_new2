@@ -588,6 +588,7 @@ router.patch(
     try {
       const tenant = getTenant(req);
       const id = String(req.params.id || "").trim();
+      const debugLineContent = process.env.DEBUG_LINE_CONTENT === "1";
 
       const parsed = updateSessionMetaSchema.safeParse(req.body ?? {});
       if (!parsed.success) {
@@ -849,12 +850,15 @@ router.get(
     try {
       const tenant = getTenant(req);
       const id = String(req.params.id || "").trim();
+      const debugLineContent = process.env.DEBUG_LINE_CONTENT === "1";
 
       if (!id) {
         return res
           .status(400)
           .json({ ok: false, message: "line_message_id_required" });
       }
+
+      let lookupMode = "chatMessage.id";
 
       // 1) ✅ ถ้า frontend ส่ง m.id (ChatMessage.id) -> หา message ด้วย id ก่อน
       let msg = await prisma.chatMessage.findFirst({
@@ -863,17 +867,31 @@ router.get(
           botId: true,
           platform: true,
           attachmentMeta: true,
+          meta: true,
         },
       });
 
       // 2) ถ้าไม่เจอ ค่อย fallback หาโดย attachmentMeta.messageId (กรณีส่ง LINE messageId มา)
       if (!msg) {
+        lookupMode = "providerMessageId/lineMessageId";
         msg = await prisma.chatMessage.findFirst({
           where: {
             tenant,
             platform: "line",
             OR: [
               { platformMessageId: id },
+              {
+                meta: {
+                  path: ["rawPayload", "message", "id"],
+                  equals: id,
+                } as any,
+              },
+              {
+                meta: {
+                  path: "rawPayload.message.id",
+                  equals: id,
+                } as any,
+              },
               {
                 attachmentMeta: {
                   // ✅ SQLite: path ต้องเป็น string
@@ -907,19 +925,20 @@ router.get(
               },
             ],
           },
-          select: { botId: true, platform: true, attachmentMeta: true },
+          select: { botId: true, platform: true, attachmentMeta: true, meta: true },
           orderBy: { createdAt: "desc" },
         });
       }
 
       if (!msg) {
-        if (process.env.DEBUG_LINE_CONTENT === "1") {
+        if (debugLineContent) {
           log.info("[line-content] lookup miss", {
             tenant,
             id,
             lookedUpFields: [
               "chatMessage.id",
               "platformMessageId",
+              "meta.rawPayload.message.id",
               "attachmentMeta.messageId",
               "attachmentMeta.lineMessageId",
               "attachmentMeta.contentMessageId",
@@ -933,6 +952,14 @@ router.get(
           .json({ ok: false, message: "line_message_not_found" });
       }
 
+      if (debugLineContent) {
+        log.info("[line-content] lookup hit", {
+          tenant,
+          id,
+          lookupMode,
+        });
+      }
+
       if (msg.platform !== "line") {
         return res
           .status(400)
@@ -942,7 +969,12 @@ router.get(
       // ดึง LINE messageId จาก meta (หรือถ้า fallback แล้ว id คือ LINE messageId ก็ใช้ id)
       const meta: any = msg.attachmentMeta ?? {};
       const lineMessageId: string = String(
-        meta.messageId || meta.lineMessageId || meta.contentMessageId || id,
+        meta.messageId ||
+          meta.lineMessageId ||
+          meta.contentMessageId ||
+          meta.providerMessageId ||
+          (msg as any)?.meta?.rawPayload?.message?.id ||
+          id,
       ).trim();
 
       if (!lineMessageId) {
