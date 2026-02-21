@@ -3,8 +3,17 @@ $baseUrl = "http://localhost:3000"
 $tenant = if ([string]::IsNullOrWhiteSpace($Env:TENANT)) { "bn9" } else { $Env:TENANT.Trim() }
 $adminEmail = $Env:ADMIN_EMAIL
 $adminPassword = $Env:ADMIN_PASSWORD
+if (-not $adminEmail -or -not $adminPassword) {
+  $adminEmail = $Env:DEV_ADMIN_EMAIL
+  $adminPassword = $Env:DEV_ADMIN_PASSWORD
+}
+if (-not $adminEmail -or -not $adminPassword) {
+  $adminEmail = "root@bn9.local"
+  $adminPassword = "bn9@12345"
+}
 $steps = @()
 $allPassed = $true
+$port3000Listening = $false
 
 function Write-Step($name, $passed, $message) {
   $status = if ($passed) { "PASS" } else { "FAIL" }
@@ -19,11 +28,18 @@ foreach ($port in @(3000, 6380)) {
   try {
     $conn = Test-NetConnection -ComputerName "localhost" -Port $port -WarningAction SilentlyContinue
     $passed = $conn.TcpTestSucceeded
+    if ($port -eq 3000) { $port3000Listening = $passed }
     $msg = if ($passed) { "listening" } else { "not reachable" }
     Write-Step "Port $port" $passed $msg
   } catch {
     Write-Step "Port $port" $false "error checking port: $_"
   }
+}
+
+if (-not $port3000Listening) {
+  Write-Host "ต้องรัน npm run dev ก่อน"
+  Write-Host "Some checks failed"
+  exit 1
 }
 
 try {
@@ -33,10 +49,7 @@ try {
   Write-Step "/api/health" $false "$_"
 }
 
-if (-not $adminEmail -or -not $adminPassword) {
-  Write-Step "admin login" $false "ADMIN_EMAIL/ADMIN_PASSWORD missing"
-  $token = $null
-} else {
+if ($port3000Listening) {
   try {
     $body = @{ email = $adminEmail; password = $adminPassword } | ConvertTo-Json
     $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/admin/auth/login" -Body $body -ContentType "application/json" -UseBasicParsing
@@ -47,6 +60,9 @@ if (-not $adminEmail -or -not $adminPassword) {
     Write-Step "admin login" $false "$_"
     $token = $null
   }
+} else {
+  Write-Step "admin login" $false "ไม่พบการฟังที่พอร์ต 3000 — ต้องรัน npm run dev ก่อน"
+  $token = $null
 }
 
 if ($token) {
