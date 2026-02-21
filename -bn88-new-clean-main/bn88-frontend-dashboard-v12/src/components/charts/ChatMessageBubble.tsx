@@ -1,5 +1,5 @@
 // src/components/chat/ChatMessageBubble.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export type ChatMessage = {
   id: string;
@@ -16,6 +16,37 @@ type Props = {
 };
 
 export function ChatMessageBubble({ msg }: Props) {
+  const [attachmentObjectUrl, setAttachmentObjectUrl] = useState<string>("");
+
+  useEffect(() => {
+    let mounted = true;
+    let objectUrl = "";
+
+    async function loadAttachmentObjectUrl() {
+      const url = String(msg.attachmentUrl || "").trim();
+      if (!url || (msg.type !== "IMAGE" && msg.type !== "FILE")) {
+        setAttachmentObjectUrl("");
+        return;
+      }
+
+      try {
+        const res = await fetch(url, { credentials: "include" });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (mounted) setAttachmentObjectUrl(objectUrl);
+      } catch {
+        if (mounted) setAttachmentObjectUrl("");
+      }
+    }
+
+    loadAttachmentObjectUrl();
+    return () => {
+      mounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [msg.attachmentUrl, msg.type]);
+
   const time = new Date(msg.createdAt).toLocaleTimeString("th-TH", {
     hour: "2-digit",
     minute: "2-digit",
@@ -43,15 +74,15 @@ export function ChatMessageBubble({ msg }: Props) {
         )}
 
         {/* รูปภาพ (ลูกค้าส่งมา) */}
-        {msg.attachmentUrl && msg.type === "IMAGE" && (
+        {attachmentObjectUrl && msg.type === "IMAGE" && (
           <a
-            href={msg.attachmentUrl}
+            href={attachmentObjectUrl}
             target="_blank"
             rel="noreferrer"
             className="block mt-2 overflow-hidden rounded-xl border border-white/10"
           >
             <img
-              src={msg.attachmentUrl}
+              src={attachmentObjectUrl}
               alt={String(msg.attachmentMeta?.fileName ?? "image")}
               className="max-h-64 w-auto object-contain"
             />
@@ -59,9 +90,9 @@ export function ChatMessageBubble({ msg }: Props) {
         )}
 
         {/* ไฟล์แนบ เช่น สลิป, PDF ฯลฯ */}
-        {msg.attachmentUrl && msg.type === "FILE" && (
+        {attachmentObjectUrl && msg.type === "FILE" && (
           <a
-            href={msg.attachmentUrl}
+            href={attachmentObjectUrl}
             target="_blank"
             rel="noreferrer"
             className="block mt-2 text-xs underline text-emerald-200"

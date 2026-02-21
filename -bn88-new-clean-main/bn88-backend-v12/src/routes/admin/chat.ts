@@ -871,7 +871,7 @@ router.get(
         },
       });
 
-      // 2) ถ้าไม่เจอ ค่อย fallback หาโดย attachmentMeta.messageId (กรณีส่ง LINE messageId มา)
+      // 2) ถ้าไม่เจอ ค่อยหาโดย platformMessageId
       if (!msg) {
         lookupMode = "providerMessageId/lineMessageId";
         msg = await prisma.chatMessage.findFirst({
@@ -1025,12 +1025,6 @@ router.get(
 
       res.setHeader("Content-Type", contentType);
 
-      const fileName: string | undefined = meta.fileName;
-      if (fileName) {
-        // ปลอดภัยกว่า encode เฉย ๆ นิดนึง (กัน quote)
-        const safeName = encodeURIComponent(fileName).replace(/%22/g, "");
-        res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
-      }
 
       return res.send(buf);
     } catch (err: any) {
