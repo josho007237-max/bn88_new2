@@ -872,11 +872,40 @@ router.get(
           where: {
             tenant,
             platform: "line",
-            attachmentMeta: {
-              // ✅ SQLite: path ต้องเป็น string
-              path: "messageId",
-              equals: id,
-            } as any,
+            OR: [
+              { platformMessageId: id },
+              {
+                attachmentMeta: {
+                  // ✅ SQLite: path ต้องเป็น string
+                  path: "messageId",
+                  equals: id,
+                } as any,
+              },
+              {
+                attachmentMeta: {
+                  path: "lineMessageId",
+                  equals: id,
+                } as any,
+              },
+              {
+                attachmentMeta: {
+                  path: "contentMessageId",
+                  equals: id,
+                } as any,
+              },
+              {
+                attachmentMeta: {
+                  path: "contentId",
+                  equals: id,
+                } as any,
+              },
+              {
+                attachmentMeta: {
+                  path: "providerMessageId",
+                  equals: id,
+                } as any,
+              },
+            ],
           },
           select: { botId: true, platform: true, attachmentMeta: true },
           orderBy: { createdAt: "desc" },
@@ -884,6 +913,21 @@ router.get(
       }
 
       if (!msg) {
+        if (process.env.DEBUG_LINE_CONTENT === "1") {
+          log.info("[line-content] lookup miss", {
+            tenant,
+            id,
+            lookedUpFields: [
+              "chatMessage.id",
+              "platformMessageId",
+              "attachmentMeta.messageId",
+              "attachmentMeta.lineMessageId",
+              "attachmentMeta.contentMessageId",
+              "attachmentMeta.contentId",
+              "attachmentMeta.providerMessageId",
+            ],
+          });
+        }
         return res
           .status(404)
           .json({ ok: false, message: "line_message_not_found" });
@@ -965,6 +1009,14 @@ router.get(
     }
   },
 );
+
+// quick-test (PowerShell):
+// 1) login -> /api/admin/bots (200)
+//    $t=(Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Body '{"email":"admin@bn9.local","password":"admin123"}').token
+//    Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3000/api/admin/bots" -Headers @{ Authorization = "Bearer $t"; "x-tenant" = "bn9" }
+// 2) line-content ทั้ง 2 เคส
+//    Invoke-WebRequest -Uri "http://127.0.0.1:3000/api/admin/chat/line-content/<ChatMessage.id>" -Headers @{ Authorization = "Bearer $t"; "x-tenant" = "bn9" } -OutFile "$env:TEMP\line-by-chat-id.bin"
+//    Invoke-WebRequest -Uri "http://127.0.0.1:3000/api/admin/chat/line-content/<LINE message id>" -Headers @{ Authorization = "Bearer $t"; "x-tenant" = "bn9" } -OutFile "$env:TEMP\line-by-line-id.bin"
 
 /* ------------------------------------------------------------------ */
 /* POST /api/admin/chat/rich-message                                  */

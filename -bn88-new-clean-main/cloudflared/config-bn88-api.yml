@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-tunnel: e416a082-3967-4708-a1da-f0a86c18a8ac
-credentials-file: C:\Users\ADMIN\.cloudflared\e416a082-3967-4708-a1da-f0a86c18a8ac.json
-ingress:
-  - hostname: hook.bn9.app
-    service: http://127.0.0.1:3000
-  - hostname: api.bn9.app
-    service: http://127.0.0.1:3000
-  - service: http_status:404
-=======
 # Permanent Cloudflare Tunnel config for BN88 API
 # Run: cloudflared tunnel run bn88-api
 
@@ -18,4 +8,4 @@ ingress:
   - hostname: hook.bn9.app
     service: http://127.0.0.1:3000
   - service: http_status:404
->>>>>>> 28e04cc544d65a71e4c35f214fafc84a929d82c4
+ main
