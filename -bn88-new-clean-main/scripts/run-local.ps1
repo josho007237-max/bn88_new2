@@ -70,6 +70,38 @@ function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   return $false
 }
 
+function Ensure-FrontendDeps([string]$FrontendDir) {
+  $viteCmdPath = Join-Path $FrontendDir 'node_modules/.bin/vite.cmd'
+  if (-not (Test-Path $viteCmdPath)) {
+    $lockFile = Join-Path $FrontendDir 'package-lock.json'
+    Push-Location $FrontendDir
+    try {
+      if (Test-Path $lockFile) {
+        Info 'frontend vite missing; run npm ci'
+        & npm ci
+      } else {
+        Info 'frontend vite missing; run npm install'
+        & npm install
+      }
+      if ($LASTEXITCODE -ne 0) {
+        throw "frontend dependency install failed with exit code $LASTEXITCODE"
+      }
+    } finally {
+      Pop-Location
+    }
+  }
+
+  Push-Location $FrontendDir
+  try {
+    & npx vite --version | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail 'frontend deps missing: vite' }
+  } catch {
+    Fail 'frontend deps missing: vite'
+  } finally {
+    Pop-Location
+  }
+}
+
 function Invoke-BackendMigrateDeploy([string]$BackendDir) {
   Info 'run prisma migrate deploy'
 
@@ -146,8 +178,10 @@ if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 90)) {
   Fail "backend not ready at $BaseUrl/api/health"
 }
 
+Ensure-FrontendDeps -FrontendDir $frontendDir
+
 Info 'start frontend'
-Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev' | Out-Null
+Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev -- --host 0.0.0.0 --port 5555' | Out-Null
 
 if (-not (Wait-Http -Url $FrontendUrl -TimeoutSec 60)) {
   Show-PortOwners -Port $FrontendPort
