@@ -66,6 +66,7 @@ cd ../bn88-frontend-dashboard-v12 && npm run dev
 
 ## Helper Scripts (Windows)
 
+- `./scripts/run-local.ps1`: รัน migrate deploy, เปิด backend + frontend และยิง smoke checks หลักอัตโนมัติ
 - `.\start-dev.ps1`: เปิด backend + frontend
 - `.\stop-dev.ps1`: หยุด process ที่ใช้พอร์ต dev
 - `.\smoke.ps1`: ตรวจสุขภาพระบบแบบรวดเร็ว
