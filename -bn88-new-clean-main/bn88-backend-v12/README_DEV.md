@@ -4,8 +4,11 @@
 
 ```powershell
 cd .\-bn88-new-clean-main\bn88-backend-v12
+npm ci
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
+
+> ต้องรัน `npm ci` ในโฟลเดอร์ `bn88-backend-v12` ก่อน `npm run dev` เสมอ เพื่อให้ dependency (เช่น `dotenv`) ครบ
 
  codex/audit-and-fix-plan-for-bn88-backend-v12-f3hoo6
 ## REQUIRED: set `SECRET_ENC_KEY_BN9` (32 characters)
