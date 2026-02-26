@@ -44,6 +44,19 @@ function Show-PortOwners([int]$Port) {
   }
 }
 
+function Ensure-PortFree([int]$Port) {
+  try {
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
+    if ($conns) {
+      Show-PortOwners -Port $Port
+      Fail "port $Port is in use; stop the process and retry"
+    }
+  } catch {
+    if ($_.Exception.Message -match 'No matching MSFT_NetTCPConnection objects found') { return }
+    Warn "cannot validate port $Port availability: $($_.Exception.Message)"
+  }
+}
+
 function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   $deadline = (Get-Date).AddSeconds($TimeoutSec)
   while ((Get-Date) -lt $deadline) {
@@ -94,7 +107,15 @@ function Invoke-BackendMigrateDeploy([string]$BackendDir) {
   }
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
+Info "repoRoot: $repoRoot"
+
+$currentDir = (Get-Location).Path
+if ($currentDir -ne $repoRoot) {
+  Info "current directory is '$currentDir' -> cd to repoRoot"
+  Set-Location $repoRoot
+}
+
 $backendDir = Join-Path $repoRoot 'bn88-backend-v12'
 $frontendDir = Join-Path $repoRoot 'bn88-frontend-dashboard-v12'
 
@@ -113,6 +134,8 @@ Get-Process -Name node -ErrorAction SilentlyContinue | ForEach-Object {
 
 Show-PortOwners -Port $BackendPort
 Show-PortOwners -Port $FrontendPort
+
+Ensure-PortFree -Port $BackendPort
 
 Info 'start backend with DEBUG_AUTH=1'
 $backendCmd = '$env:DEBUG_AUTH="1"; npm run dev'
