@@ -49,7 +49,7 @@ try {
   Write-Step "/api/health" $false "$_"
 }
 
-if ($port3000Listening) {
+if (-not ($steps | Where-Object { $_.Name -eq "Port 3000" -and -not $_.Passed })) {
   try {
     $body = @{ email = $adminEmail; password = $adminPassword } | ConvertTo-Json
     $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/admin/auth/login" -Body $body -ContentType "application/json" -UseBasicParsing
