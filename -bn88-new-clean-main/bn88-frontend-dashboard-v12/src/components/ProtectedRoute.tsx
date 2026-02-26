@@ -1,6 +1,6 @@
 // src/components/ProtectedRoute.tsx
 import { Navigate } from "react-router-dom";
-import { getToken } from "../lib/api";
+import { getToken } from "../lib/auth";
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
   const token = getToken();

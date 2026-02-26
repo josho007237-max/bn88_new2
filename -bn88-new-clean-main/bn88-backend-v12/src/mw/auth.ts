@@ -7,6 +7,7 @@ export type AuthPayload = {
   sub: string;
   email: string;
   roles: string[];
+  permissions?: string[];
   tokenType?: string;
 };
 
@@ -114,6 +115,7 @@ function toDebugAuth(payload?: Partial<AuthPayload> & { id?: string }) {
     sub: payload.sub,
     email: payload.email,
     roles: Array.isArray(payload.roles) ? payload.roles : [],
+    permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
     tokenType: payload.tokenType,
   };
 }
@@ -185,10 +187,16 @@ export function authGuard(req: Request, res: Response, next: NextFunction) {
       : payload.roles
         ? [String(payload.roles)]
         : [];
+    const permissions = Array.isArray((payload as any).permissions)
+      ? (payload as any).permissions.map(String)
+      : (payload as any).permissions
+        ? [String((payload as any).permissions)]
+        : [];
     const session = {
       ...payload,
       sub,
       roles,
+      permissions,
       id: sub,
     } as AuthPayload & { id: string };
 

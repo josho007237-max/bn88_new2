@@ -48,11 +48,11 @@ import {
   updateEngagementMessage,
   deleteEngagementMessage,
   TENANT,
-  getToken,
   getAdminAuthHeaders,
   fetchLineContentBlob as fetchLineContentBlobViaApi,
   downloadObjectUrl,
 } from "../lib/api";
+import { getToken } from "../lib/auth";
 
 const POLL_INTERVAL_MS = 3000; // 3 วินาที
 const PAGE_SIZE = 50;
