@@ -1,20 +1,15 @@
+[CmdletBinding(PositionalBinding = $false)]
 param(
   [string]$BaseUrl = 'http://127.0.0.1:3000',
   [string]$FrontendUrl = 'http://127.0.0.1:5555',
   [int]$BackendPort = 3000,
-  [int]$FrontendPort = 5555
+  [int]$FrontendPort = 5555,
+  [switch]$SkipFrontend,
+  [switch]$SkipSeed,
+  [switch]$NoKill
 )
 
 $ErrorActionPreference = 'Stop'
-
-$currentDir = (Get-Location).Path
-Info "Current Directory: $currentDir"
-$expectedRoot = Split-Path -Parent $PSScriptRoot
-$scriptPathFromCwd = Join-Path $currentDir 'scripts/run-local.ps1'
-if (-not (Test-Path $scriptPathFromCwd)) {
-  Warn "Test-Path scripts/run-local.ps1 = false"
-  Warn "please cd to repo root first: $expectedRoot"
-}
 
 function Info([string]$Message) {
   Write-Host "[run-local] $Message" -ForegroundColor Cyan
@@ -27,6 +22,24 @@ function Warn([string]$Message) {
 function Fail([string]$Message) {
   Write-Host "[run-local] ERROR: $Message" -ForegroundColor Red
   exit 1
+}
+
+function Show-Usage {
+  Write-Host 'Usage: ./scripts/run-local.ps1 [-BaseUrl <url>] [-FrontendUrl <url>] [-BackendPort <int>] [-FrontendPort <int>] [-SkipFrontend] [-SkipSeed] [-NoKill]' -ForegroundColor Yellow
+}
+
+$currentDir = (Get-Location).Path
+Info "Current Directory: $currentDir"
+if ($args.Count -gt 0) {
+  Warn "unknown argument(s): $($args -join ' ')"
+  Show-Usage
+  exit 1
+}
+$expectedRoot = Split-Path -Parent $PSScriptRoot
+$scriptPathFromCwd = Join-Path $currentDir 'scripts/run-local.ps1'
+if (-not (Test-Path $scriptPathFromCwd)) {
+  Warn "Test-Path scripts/run-local.ps1 = false"
+  Warn "please cd to repo root first: $expectedRoot"
 }
 
 function Show-PortOwners([int]$Port) {
@@ -126,9 +139,13 @@ if (-not (Test-Path $frontendDir)) { Fail "missing frontend dir: $frontendDir" }
 $pwshCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } elseif (Get-Command powershell -ErrorAction SilentlyContinue) { 'powershell' } else { $null }
 if (-not $pwshCmd) { Fail 'cannot find pwsh/powershell in PATH' }
 
-Info 'kill stale node processes'
-Get-Process -Name node -ErrorAction SilentlyContinue | ForEach-Object {
-  try { Stop-Process -Id $_.Id -Force -ErrorAction Stop } catch { }
+if ($NoKill) {
+  Info 'skip kill stale node processes (-NoKill)'
+} else {
+  Info 'kill stale node processes'
+  Get-Process -Name node -ErrorAction SilentlyContinue | ForEach-Object {
+    try { Stop-Process -Id $_.Id -Force -ErrorAction Stop } catch { }
+  }
 }
 
 Show-PortOwners -Port $BackendPort
@@ -145,8 +162,12 @@ try {
 }
 
 Invoke-PrismaDeployWithP3009Fix -BackendDir $backendDir
-Invoke-Npm -Dir $backendDir -Command 'run seed:dev'
-Invoke-Npm -Dir $backendDir -Command 'run seed:admin'
+if ($SkipSeed) {
+  Info 'skip seed step (-SkipSeed)'
+} else {
+  Invoke-Npm -Dir $backendDir -Command 'run seed:dev'
+  Invoke-Npm -Dir $backendDir -Command 'run seed:admin'
+}
 
 Info 'start backend with DEBUG_AUTH=1'
 $backendCmd = '$env:DEBUG_AUTH="1"; npm run dev'
@@ -158,15 +179,19 @@ if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 120)) {
   Fail "backend not ready at $BaseUrl/api/health"
 }
 
-Invoke-Npm -Dir $frontendDir -Command 'i'
-Info 'start frontend'
-$frontendCmd = 'npm run dev -- --host 0.0.0.0 --port 5555'
-Info "exec: $frontendCmd"
-Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', $frontendCmd | Out-Null
+if ($SkipFrontend) {
+  Info 'skip frontend step (-SkipFrontend)'
+} else {
+  Invoke-Npm -Dir $frontendDir -Command 'i'
+  Info 'start frontend'
+  $frontendCmd = 'npm run dev -- --host 0.0.0.0 --port 5555'
+  Info "exec: $frontendCmd"
+  Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', $frontendCmd | Out-Null
 
-if (-not (Wait-Http -Url $FrontendUrl -TimeoutSec 60)) {
-  Show-PortOwners -Port $FrontendPort
-  Warn "frontend not ready at $FrontendUrl"
+  if (-not (Wait-Http -Url $FrontendUrl -TimeoutSec 60)) {
+    Show-PortOwners -Port $FrontendPort
+    Warn "frontend not ready at $FrontendUrl"
+  }
 }
 
 Info 'check /api/health'
@@ -175,5 +200,5 @@ if ($null -eq $health) { Fail 'health response is null' }
 
 Write-Host ''
 Write-Host '[run-local] ready' -ForegroundColor Green
-Write-Host "[run-local] open frontend: $FrontendUrl"
+if (-not $SkipFrontend) { Write-Host "[run-local] open frontend: $FrontendUrl" }
 Write-Host "[run-local] backend health: $BaseUrl/api/health"
