@@ -6,7 +6,9 @@ param(
   [int]$FrontendPort = 5555,
   [switch]$SkipFrontend,
   [switch]$SkipSeed,
-  [switch]$NoKill
+  [switch]$NoKill,
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$ExtraArgs
 )
 
 $ErrorActionPreference = 'Stop'
@@ -30,8 +32,9 @@ function Show-Usage {
 
 $currentDir = (Get-Location).Path
 Info "Current Directory: $currentDir"
-if ($args.Count -gt 0) {
-  Warn "unknown argument(s): $($args -join ' ')"
+if (($args.Count -gt 0) -or ($ExtraArgs.Count -gt 0)) {
+  $unknown = @($args + $ExtraArgs) -join ' '
+  Warn "unknown argument(s): $unknown"
   Show-Usage
   exit 1
 }
