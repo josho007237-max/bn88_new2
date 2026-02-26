@@ -57,12 +57,51 @@ function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   return $false
 }
 
+function Invoke-BackendMigrateDeploy([string]$BackendDir) {
+  Info 'run prisma migrate deploy'
+
+  $devDbPath = Join-Path $BackendDir 'dev.db'
+  $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+
+  Push-Location $BackendDir
+  try {
+    try {
+      & npm run migrate:deploy
+      if ($LASTEXITCODE -eq 0) { return }
+      throw "npm run migrate:deploy exit code $LASTEXITCODE"
+    } catch {
+      $errorText = $_ | Out-String
+      if ($errorText -notmatch 'P3009') { throw }
+
+      Warn 'detected Prisma P3009; backing up and removing bn88-backend-v12/dev.db before retry'
+      if (Test-Path $devDbPath) {
+        $backupPath = Join-Path $BackendDir ("dev.db.bak.$timestamp")
+        Copy-Item -Path $devDbPath -Destination $backupPath -Force
+        Remove-Item -Path $devDbPath -Force
+        Info "database backup created: $backupPath"
+      } else {
+        Warn "database file not found at $devDbPath"
+      }
+
+      Info 'retry prisma migrate deploy after database reset'
+      & npm run migrate:deploy
+      if ($LASTEXITCODE -ne 0) {
+        throw "retry npm run migrate:deploy exit code $LASTEXITCODE"
+      }
+    }
+  } finally {
+    Pop-Location
+  }
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $backendDir = Join-Path $repoRoot 'bn88-backend-v12'
 $frontendDir = Join-Path $repoRoot 'bn88-frontend-dashboard-v12'
 
 if (-not (Test-Path $backendDir)) { Fail "missing backend dir: $backendDir" }
 if (-not (Test-Path $frontendDir)) { Fail "missing frontend dir: $frontendDir" }
+
+Invoke-BackendMigrateDeploy -BackendDir $backendDir
 
 $pwshCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } elseif (Get-Command powershell -ErrorAction SilentlyContinue) { 'powershell' } else { $null }
 if (-not $pwshCmd) { Fail 'cannot find pwsh/powershell in PATH' }
