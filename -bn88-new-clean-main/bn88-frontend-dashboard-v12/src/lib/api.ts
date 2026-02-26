@@ -5,6 +5,17 @@ import axios, {
   type InternalAxiosRequestConfig,
   type AxiosRequestHeaders,
 } from "axios";
+import {
+  clearToken as clearAuthToken,
+  getToken as getAuthToken,
+  TOKEN_KEY,
+  setToken as setAuthToken,
+} from "./auth";
+
+export { TOKEN_KEY };
+export const getToken = getAuthToken;
+export const setToken = setAuthToken;
+export const clearToken = clearAuthToken;
 
 /* ============================ Local Types ============================ */
 
@@ -429,64 +440,6 @@ export const TENANT =
   (import.meta as any).env?.VITE_TENANT ||
   "bn9";
 
-// ให้ทั้งโปรเจกต์ใช้ key เดียว (ให้สอดคล้องกับ RequireAuth ถ้าเดิมใช้ bn9_jwt)
-export const TOKEN_KEY = "bn9_jwt";
-
-// รองรับ key เก่าๆ ทั้งหมด (จะ migrate ให้เอง)
-const LEGACY_TOKEN_KEYS = [
-  "bn9.admin.token",
-  "BN9_TOKEN",
-  "bn9_token",
-  "BN9_ADMIN_JWT",
-];
-
-/* ================================ Token Utils ================================ */
-
-export function getToken(): string {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  } catch {
-    return "";
-  }
-}
-
-export function setToken(t: string) {
-  try {
-    localStorage.setItem(TOKEN_KEY, t);
-    window.dispatchEvent(new Event("bn9:token-changed"));
-  } catch {
-    // ignore
-  }
-}
-
-export function clearToken() {
-  try {
-    localStorage.removeItem(TOKEN_KEY);
-    for (const k of LEGACY_TOKEN_KEYS) localStorage.removeItem(k);
-    window.dispatchEvent(new Event("bn9:token-changed"));
-  } catch {
-    // ignore
-  }
-}
-
-(function migrateLegacyToken() {
-  try {
-    const current = localStorage.getItem(TOKEN_KEY);
-    if (current) return;
-
-    for (const k of LEGACY_TOKEN_KEYS) {
-      const v = localStorage.getItem(k);
-      if (v) {
-        localStorage.setItem(TOKEN_KEY, v);
-        for (const kk of LEGACY_TOKEN_KEYS) localStorage.removeItem(kk);
-        return;
-      }
-    }
-  } catch {
-    // ignore
-  }
-})();
-
 /**
  * หุ้ม URL ให้พก token แอดมินไปด้วย (ใช้กับรูป / ไฟล์ ที่โหลดผ่าน <img>, <a>)
  */
@@ -551,8 +504,7 @@ function buildAuthHeaders(): HeadersInit {
 }
 
 export async function fetchLineContentBlob(messageId: string): Promise<Blob> {
-  const base = API_BASE || "/api";
-  const url = `${base}${getLineContentPath(messageId)}`;
+  const url = getLineContentUrl(messageId);
   const res = await fetch(url, { headers: buildAuthHeaders() });
   if (!res.ok) throw new Error(`line_content_fetch_failed:${res.status}`);
   return await res.blob();
@@ -568,8 +520,7 @@ export async function fetchLineContentObjectUrl(messageId: string): Promise<{
   contentType?: string;
   filename?: string;
 }> {
-  const base = API_BASE || "/api";
-  const requestUrl = `${base}${getLineContentPath(messageId)}`;
+  const requestUrl = getLineContentUrl(messageId);
   const res = await fetch(requestUrl, { headers: buildAuthHeaders() });
   if (!res.ok) throw new Error(`line_content_fetch_failed:${res.status}`);
   const blob = await res.blob();
