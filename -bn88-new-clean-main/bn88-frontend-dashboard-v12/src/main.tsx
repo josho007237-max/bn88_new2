@@ -24,7 +24,7 @@ import DailyRuleStock from "./pages/DailyRuleStock";
 
 import "./index.css";
 
-import { getToken } from "./lib/api"; // ✅ ใช้ตัวเดียวกันทั้งระบบ
+import { getToken, migrateLegacyTokenOnBoot } from "./lib/auth";
 import ImageSamplesPage from "./pages/ImageSamples";
 
 // ใน <Routes> ... </Routes>
@@ -33,6 +33,8 @@ import ImageSamplesPage from "./pages/ImageSamples";
 function hasToken() {
   return !!getToken();
 }
+
+migrateLegacyTokenOnBoot();
 
 function ScrollTop() {
   const { pathname } = useLocation();
