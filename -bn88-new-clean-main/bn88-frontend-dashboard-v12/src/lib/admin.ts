@@ -1,4 +1,5 @@
-import { clearToken, getAdminAuthHeaders, getToken, setToken } from "./api";
+import { getAdminAuthHeaders } from "./api";
+import { clearToken, getToken, setToken } from "./auth";
 // src/lib/admin.ts
 const BASE = import.meta.env.VITE_API_BASE || "/api";
 
