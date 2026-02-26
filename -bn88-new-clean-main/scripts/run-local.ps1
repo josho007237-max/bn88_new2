@@ -44,6 +44,19 @@ function Show-PortOwners([int]$Port) {
   }
 }
 
+function Ensure-PortFree([int]$Port) {
+  try {
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
+    if ($conns) {
+      Show-PortOwners -Port $Port
+      Fail "port $Port is in use; stop the process and retry"
+    }
+  } catch {
+    if ($_.Exception.Message -match 'No matching MSFT_NetTCPConnection objects found') { return }
+    Warn "cannot validate port $Port availability: $($_.Exception.Message)"
+  }
+}
+
 function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   $deadline = (Get-Date).AddSeconds($TimeoutSec)
   while ((Get-Date) -lt $deadline) {
@@ -114,6 +127,8 @@ Get-Process -Name node -ErrorAction SilentlyContinue | ForEach-Object {
 Show-PortOwners -Port $BackendPort
 Show-PortOwners -Port $FrontendPort
 
+Ensure-PortFree -Port $BackendPort
+
 Info 'start backend with DEBUG_AUTH=1'
 $backendCmd = '$env:DEBUG_AUTH="1"; npm run dev'
 Start-Process -FilePath $pwshCmd -WorkingDirectory $backendDir -ArgumentList '-NoExit', '-Command', $backendCmd | Out-Null
@@ -123,8 +138,10 @@ if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 90)) {
   Fail "backend not ready at $BaseUrl/api/health"
 }
 
+Ensure-FrontendDeps -FrontendDir $frontendDir
+
 Info 'start frontend'
-Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev' | Out-Null
+Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev -- --host 0.0.0.0 --port 5555' | Out-Null
 
 if (-not (Wait-Http -Url $FrontendUrl -TimeoutSec 60)) {
   Show-PortOwners -Port $FrontendPort
