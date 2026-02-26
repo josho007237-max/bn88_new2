@@ -51,6 +51,11 @@ cd ../bn88-backend-v12 && npm run dev
 cd ../bn88-frontend-dashboard-v12 && npm run dev
 ```
 
+## Environment Files
+
+- ไฟล์ `.env` ไม่ถูก track ใน Git
+- ให้สร้าง `.env` จาก `.env.example` ของแต่ละโปรเจคก่อนรันระบบ
+
 ## Default Ports
 
 - Backend API: `http://localhost:3000` (local also reachable as `http://127.0.0.1:3000`)
