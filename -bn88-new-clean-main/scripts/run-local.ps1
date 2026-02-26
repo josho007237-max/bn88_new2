@@ -7,6 +7,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$currentDir = (Get-Location).Path
+Info "Current Directory: $currentDir"
+$expectedRoot = Split-Path -Parent $PSScriptRoot
+$scriptPathFromCwd = Join-Path $currentDir 'scripts/run-local.ps1'
+if (-not (Test-Path $scriptPathFromCwd)) {
+  Warn "Test-Path scripts/run-local.ps1 = false"
+  Warn "please cd to repo root first: $expectedRoot"
+}
+
 function Info([string]$Message) {
   Write-Host "[run-local] $Message" -ForegroundColor Cyan
 }
@@ -57,10 +66,10 @@ function Wait-Http([string]$Url, [int]$TimeoutSec = 90) {
 function Invoke-Npm([string]$Dir, [string]$Command) {
   Push-Location $Dir
   try {
-    Info "$Dir > npm $Command"
+    Info "exec: npm $Command"
     & npm $Command
     if ($LASTEXITCODE -ne 0) {
-      throw "npm $Command failed (exit $LASTEXITCODE)"
+      Fail "step failed: npm $Command (exit $LASTEXITCODE)"
     }
   } finally {
     Pop-Location
@@ -70,7 +79,7 @@ function Invoke-Npm([string]$Dir, [string]$Command) {
 function Invoke-PrismaDeployWithP3009Fix([string]$BackendDir) {
   Push-Location $BackendDir
   try {
-    Info 'run prisma migrate deploy'
+    Info 'exec: npx prisma migrate deploy'
     $out = & npx prisma migrate deploy 2>&1
     $text = ($out | Out-String)
     if ($LASTEXITCODE -eq 0) {
@@ -95,13 +104,13 @@ function Invoke-PrismaDeployWithP3009Fix([string]$BackendDir) {
 
       & npx prisma migrate deploy
       if ($LASTEXITCODE -ne 0) {
-        throw 'prisma migrate deploy failed after P3009 recovery'
+        Fail 'step failed: prisma migrate deploy after P3009 recovery'
       }
       return
     }
 
     Write-Host $text
-    throw 'prisma migrate deploy failed'
+    Fail 'step failed: prisma migrate deploy'
   } finally {
     Pop-Location
   }
@@ -128,9 +137,9 @@ Show-PortOwners -Port $FrontendPort
 Invoke-Npm -Dir $backendDir -Command 'i'
 Push-Location $backendDir
 try {
-  Info "$backendDir > npx prisma generate"
+  Info 'exec: npx prisma generate'
   & npx prisma generate
-  if ($LASTEXITCODE -ne 0) { throw 'prisma generate failed' }
+  if ($LASTEXITCODE -ne 0) { Fail 'step failed: prisma generate' }
 } finally {
   Pop-Location
 }
@@ -141,6 +150,7 @@ Invoke-Npm -Dir $backendDir -Command 'run seed:admin'
 
 Info 'start backend with DEBUG_AUTH=1'
 $backendCmd = '$env:DEBUG_AUTH="1"; npm run dev'
+Info "exec: $backendCmd"
 Start-Process -FilePath $pwshCmd -WorkingDirectory $backendDir -ArgumentList '-NoExit', '-Command', $backendCmd | Out-Null
 
 if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 120)) {
@@ -150,7 +160,9 @@ if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 120)) {
 
 Invoke-Npm -Dir $frontendDir -Command 'i'
 Info 'start frontend'
-Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev -- --host 0.0.0.0 --port 5555' | Out-Null
+$frontendCmd = 'npm run dev -- --host 0.0.0.0 --port 5555'
+Info "exec: $frontendCmd"
+Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', $frontendCmd | Out-Null
 
 if (-not (Wait-Http -Url $FrontendUrl -TimeoutSec 60)) {
   Show-PortOwners -Port $FrontendPort
