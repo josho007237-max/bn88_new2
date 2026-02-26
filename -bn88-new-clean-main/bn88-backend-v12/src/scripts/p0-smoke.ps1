@@ -13,6 +13,7 @@ if (-not $adminEmail -or -not $adminPassword) {
 }
 $steps = @()
 $allPassed = $true
+$port3000Listening = $false
 
 function Write-Step($name, $passed, $message) {
   $status = if ($passed) { "PASS" } else { "FAIL" }
@@ -27,11 +28,18 @@ foreach ($port in @(3000, 6380)) {
   try {
     $conn = Test-NetConnection -ComputerName "localhost" -Port $port -WarningAction SilentlyContinue
     $passed = $conn.TcpTestSucceeded
+    if ($port -eq 3000) { $port3000Listening = $passed }
     $msg = if ($passed) { "listening" } else { "not reachable" }
     Write-Step "Port $port" $passed $msg
   } catch {
     Write-Step "Port $port" $false "error checking port: $_"
   }
+}
+
+if (-not $port3000Listening) {
+  Write-Host "ต้องรัน npm run dev ก่อน"
+  Write-Host "Some checks failed"
+  exit 1
 }
 
 try {
