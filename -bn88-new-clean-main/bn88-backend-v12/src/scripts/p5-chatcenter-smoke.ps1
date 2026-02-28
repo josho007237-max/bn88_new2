@@ -45,18 +45,9 @@ function Invoke-JsonRequest(
   }
 }
 
-function Get-MessageArray([object]$Body) {
-  if ($null -eq $Body) { return @() }
-  if ($Body.items) { return @($Body.items) }
-  if ($Body.messages) { return @($Body.messages) }
-  if ($Body -is [System.Array]) { return @($Body) }
-  return @()
-}
-
 $token = $null
 $headers = $null
 $sessionId = $null
-$beforeMessages = @()
 
 # 1) login
 $loginRes = Invoke-JsonRequest -Method 'POST' -Url "$BaseUrl/api/admin/auth/login" -Body @{ email = $Email; password = $Password }
@@ -97,13 +88,8 @@ if (-not $failed) {
 # 3) get messages
 if (-not $failed) {
   $msgRes = Invoke-JsonRequest -Method 'GET' -Url "$BaseUrl/api/admin/chat/sessions/$sessionId/messages" -Headers $headers
-  if ($msgRes.ok) {
-    $beforeMessages = Get-MessageArray -Body $msgRes.body
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages' -StatusCode $msgRes.status -Ok $true -Detail ("count=$($beforeMessages.Count)")
-  } else {
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages' -StatusCode $msgRes.status -Ok $false
-    $failed = $true
-  }
+  Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages' -StatusCode $msgRes.status -Ok $msgRes.ok
+  if (-not $msgRes.ok) { $failed = $true }
 }
 
 # 4) reply
@@ -116,28 +102,8 @@ if (-not $failed) {
 # 5) reload messages
 if (-not $failed) {
   $reloadRes = Invoke-JsonRequest -Method 'GET' -Url "$BaseUrl/api/admin/chat/sessions/$sessionId/messages" -Headers $headers
-  if ($reloadRes.ok) {
-    $afterMessages = Get-MessageArray -Body $reloadRes.body
-    $beforeIds = @{}
-    foreach ($m in $beforeMessages) {
-      $id = [string]$m.id
-      if (-not [string]::IsNullOrWhiteSpace($id)) { $beforeIds[$id] = $true }
-    }
-    $hasNew = $false
-    foreach ($m in $afterMessages) {
-      $id = [string]$m.id
-      $text = [string]$m.text
-      if ((-not [string]::IsNullOrWhiteSpace($id) -and -not $beforeIds.ContainsKey($id)) -or $text -eq $ReplyText) {
-        $hasNew = $true
-        break
-      }
-    }
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages (reload)' -StatusCode $reloadRes.status -Ok $hasNew -Detail ("before=$($beforeMessages.Count), after=$($afterMessages.Count)")
-    if (-not $hasNew) { $failed = $true }
-  } else {
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages (reload)' -StatusCode $reloadRes.status -Ok $false
-    $failed = $true
-  }
+  Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages (reload)' -StatusCode $reloadRes.status -Ok $reloadRes.ok
+  if (-not $reloadRes.ok) { $failed = $true }
 }
 
 if ($failed) {

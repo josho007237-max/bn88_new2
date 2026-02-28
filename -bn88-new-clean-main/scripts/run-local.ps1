@@ -70,45 +70,6 @@ function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   return $false
 }
 
-function Ensure-FrontendDeps([string]$FrontendDir) {
-  $viteCmdPath = Join-Path $FrontendDir 'node_modules/.bin/vite.cmd'
-  if (-not (Test-Path $viteCmdPath)) {
-    $lockFile = Join-Path $FrontendDir 'package-lock.json'
-    Push-Location $FrontendDir
-    try {
-      if (Test-Path $lockFile) {
-        Info 'frontend vite missing; run npm ci'
-        & npm ci
-      } else {
-        Info 'frontend vite missing; run npm install'
-        & npm install
-      }
-      if ($LASTEXITCODE -ne 0) {
-        throw "frontend dependency install failed with exit code $LASTEXITCODE"
-      }
-    } finally {
-      Pop-Location
-    }
-  }
-
-  Push-Location $FrontendDir
-  try {
-    & npx vite --version | Out-Null
-    if ($LASTEXITCODE -ne 0) { Fail 'frontend deps missing: vite' }
-  } catch {
-    Fail 'frontend deps missing: vite'
-  } finally {
-    Pop-Location
-  }
-}
-
-function Ensure-BackendDeps([string]$BackendDir) {
-  $nodeModulesDir = Join-Path $BackendDir 'node_modules'
-  if (-not (Test-Path $nodeModulesDir)) {
-    Fail "backend dependencies missing at $nodeModulesDir`nRun:`n  cd $BackendDir`n  npm ci"
-  }
-}
-
 function Invoke-BackendMigrateDeploy([string]$BackendDir) {
   Info 'run prisma migrate deploy'
 
@@ -146,22 +107,13 @@ function Invoke-BackendMigrateDeploy([string]$BackendDir) {
   }
 }
 
-$repoRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
-Info "repoRoot: $repoRoot"
-
-$currentDir = (Get-Location).Path
-if ($currentDir -ne $repoRoot) {
-  Info "current directory is '$currentDir' -> cd to repoRoot"
-  Set-Location $repoRoot
-}
-
+$repoRoot = Split-Path -Parent $PSScriptRoot
 $backendDir = Join-Path $repoRoot 'bn88-backend-v12'
 $frontendDir = Join-Path $repoRoot 'bn88-frontend-dashboard-v12'
 
 if (-not (Test-Path $backendDir)) { Fail "missing backend dir: $backendDir" }
 if (-not (Test-Path $frontendDir)) { Fail "missing frontend dir: $frontendDir" }
 
-Ensure-BackendDeps -BackendDir $backendDir
 Invoke-BackendMigrateDeploy -BackendDir $backendDir
 
 $pwshCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } elseif (Get-Command powershell -ErrorAction SilentlyContinue) { 'powershell' } else { $null }
