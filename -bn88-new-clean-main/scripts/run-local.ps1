@@ -44,6 +44,19 @@ function Show-PortOwners([int]$Port) {
   }
 }
 
+function Ensure-PortFree([int]$Port) {
+  try {
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
+    if ($conns) {
+      Show-PortOwners -Port $Port
+      Fail "port $Port is in use; stop the process and retry"
+    }
+  } catch {
+    if ($_.Exception.Message -match 'No matching MSFT_NetTCPConnection objects found') { return }
+    Warn "cannot validate port $Port availability: $($_.Exception.Message)"
+  }
+}
+
 function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   $deadline = (Get-Date).AddSeconds($TimeoutSec)
   while ((Get-Date) -lt $deadline) {
@@ -57,12 +70,91 @@ function Wait-Http([string]$Url, [int]$TimeoutSec = 60) {
   return $false
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+function Ensure-FrontendDeps([string]$FrontendDir) {
+  $viteCmdPath = Join-Path $FrontendDir 'node_modules/.bin/vite.cmd'
+  if (-not (Test-Path $viteCmdPath)) {
+    $lockFile = Join-Path $FrontendDir 'package-lock.json'
+    Push-Location $FrontendDir
+    try {
+      if (Test-Path $lockFile) {
+        Info 'frontend vite missing; run npm ci'
+        & npm ci
+      } else {
+        Info 'frontend vite missing; run npm install'
+        & npm install
+      }
+      if ($LASTEXITCODE -ne 0) {
+        throw "frontend dependency install failed with exit code $LASTEXITCODE"
+      }
+    } finally {
+      Pop-Location
+    }
+  }
+
+  Push-Location $FrontendDir
+  try {
+    & npx vite --version | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail 'frontend deps missing: vite' }
+  } catch {
+    Fail 'frontend deps missing: vite'
+  } finally {
+    Pop-Location
+  }
+}
+
+function Invoke-BackendMigrateDeploy([string]$BackendDir) {
+  Info 'run prisma migrate deploy'
+
+  $devDbPath = Join-Path $BackendDir 'dev.db'
+  $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+
+  Push-Location $BackendDir
+  try {
+    try {
+      & npm run migrate:deploy
+      if ($LASTEXITCODE -eq 0) { return }
+      throw "npm run migrate:deploy exit code $LASTEXITCODE"
+    } catch {
+      $errorText = $_ | Out-String
+      if ($errorText -notmatch 'P3009') { throw }
+
+      Warn 'detected Prisma P3009; backing up and removing bn88-backend-v12/dev.db before retry'
+      if (Test-Path $devDbPath) {
+        $backupPath = Join-Path $BackendDir ("dev.db.bak.$timestamp")
+        Copy-Item -Path $devDbPath -Destination $backupPath -Force
+        Remove-Item -Path $devDbPath -Force
+        Info "database backup created: $backupPath"
+      } else {
+        Warn "database file not found at $devDbPath"
+      }
+
+      Info 'retry prisma migrate deploy after database reset'
+      & npm run migrate:deploy
+      if ($LASTEXITCODE -ne 0) {
+        throw "retry npm run migrate:deploy exit code $LASTEXITCODE"
+      }
+    }
+  } finally {
+    Pop-Location
+  }
+}
+
+$repoRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
+Info "repoRoot: $repoRoot"
+
+$currentDir = (Get-Location).Path
+if ($currentDir -ne $repoRoot) {
+  Info "current directory is '$currentDir' -> cd to repoRoot"
+  Set-Location $repoRoot
+}
+
 $backendDir = Join-Path $repoRoot 'bn88-backend-v12'
 $frontendDir = Join-Path $repoRoot 'bn88-frontend-dashboard-v12'
 
 if (-not (Test-Path $backendDir)) { Fail "missing backend dir: $backendDir" }
 if (-not (Test-Path $frontendDir)) { Fail "missing frontend dir: $frontendDir" }
+
+Invoke-BackendMigrateDeploy -BackendDir $backendDir
 
 $pwshCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } elseif (Get-Command powershell -ErrorAction SilentlyContinue) { 'powershell' } else { $null }
 if (-not $pwshCmd) { Fail 'cannot find pwsh/powershell in PATH' }
@@ -75,6 +167,8 @@ Get-Process -Name node -ErrorAction SilentlyContinue | ForEach-Object {
 Show-PortOwners -Port $BackendPort
 Show-PortOwners -Port $FrontendPort
 
+Ensure-PortFree -Port $BackendPort
+
 Info 'start backend with DEBUG_AUTH=1'
 $backendCmd = '$env:DEBUG_AUTH="1"; npm run dev'
 Start-Process -FilePath $pwshCmd -WorkingDirectory $backendDir -ArgumentList '-NoExit', '-Command', $backendCmd | Out-Null
@@ -84,8 +178,10 @@ if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 90)) {
   Fail "backend not ready at $BaseUrl/api/health"
 }
 
+Ensure-FrontendDeps -FrontendDir $frontendDir
+
 Info 'start frontend'
-Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev' | Out-Null
+Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev -- --host 0.0.0.0 --port 5555' | Out-Null
 
 if (-not (Wait-Http -Url $FrontendUrl -TimeoutSec 60)) {
   Show-PortOwners -Port $FrontendPort
