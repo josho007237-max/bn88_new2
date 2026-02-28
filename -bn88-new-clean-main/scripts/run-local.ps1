@@ -130,12 +130,12 @@ Show-PortOwners -Port $FrontendPort
 Ensure-PortFree -Port $BackendPort
 
 Info 'start backend with DEBUG_AUTH=1'
-$backendCmd = '$env:DEBUG_AUTH="1"; npm run dev'
+$backendCmd = "$env:DEBUG_AUTH='1'; $env:PORT='$BackendPort'; npm run dev"
 Start-Process -FilePath $pwshCmd -WorkingDirectory $backendDir -ArgumentList '-NoExit', '-Command', $backendCmd | Out-Null
 
 if (-not (Wait-Http -Url "$BaseUrl/api/health" -TimeoutSec 90)) {
   Show-PortOwners -Port $BackendPort
-  Fail "backend not ready at $BaseUrl/api/health"
+  Fail "backend not ready at $BaseUrl/api/health`nExpected backend path: $backendDir`nTry:`n  cd $backendDir`n  $env:PORT=$BackendPort`n  npm run dev"
 }
 
 Ensure-FrontendDeps -FrontendDir $frontendDir
