@@ -93,7 +93,7 @@
 - Acceptance:
   - มีข้อมูล `ChatSession`/`ChatMessage` ผูกกันถูก
 - Commands:
-  - `cd bn88-backend-v12 && npx prisma studio` (ตรวจด้วยตา)
+  - `cd bn88-backend-v12 && npm exec prisma studio -- --port 5556` (ตรวจด้วยตา)
   - หรือยิง endpoint sessions/messages ใน admin chat
 
 ### Phase 5 — SSE realtime
