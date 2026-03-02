@@ -39,6 +39,8 @@ const EnvSchema = z.object({
   MESSAGE_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(90),
 });
 
+console.log(`[BOOT][DB] DATABASE_URL=${String(process.env.DATABASE_URL || "").trim() || "(not set)"}`);
+
 const parsed = EnvSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error("[INVALID ENV]", parsed.error.format());
