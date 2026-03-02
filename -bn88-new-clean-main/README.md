@@ -51,6 +51,11 @@ cd ../bn88-backend-v12 && npm run dev
 cd ../bn88-frontend-dashboard-v12 && npm run dev
 ```
 
+## Environment Files
+
+- ไฟล์ `.env` ไม่ถูก track ใน Git
+- ให้สร้าง `.env` จาก `.env.example` ของแต่ละโปรเจคก่อนรันระบบ
+
 ## Default Ports
 
 - Backend API: `http://localhost:3000` (local also reachable as `http://127.0.0.1:3000`)
@@ -66,6 +71,7 @@ cd ../bn88-frontend-dashboard-v12 && npm run dev
 
 ## Helper Scripts (Windows)
 
+- `./scripts/run-local.ps1`: รัน migrate deploy, เปิด backend + frontend และยิง smoke checks หลักอัตโนมัติ
 - `.\start-dev.ps1`: เปิด backend + frontend
 - `.\stop-dev.ps1`: หยุด process ที่ใช้พอร์ต dev
 - `.\smoke.ps1`: ตรวจสุขภาพระบบแบบรวดเร็ว
