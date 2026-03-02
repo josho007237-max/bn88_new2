@@ -1,0 +1,14 @@
+
+> bn88-backend-v12@1.0.0 predev
+> npm run prisma:generate:safe
+
+
+> bn88-backend-v12@1.0.0 prisma:generate:safe
+> prisma generate
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Error: 
+EPERM: operation not permitted, rename 'C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12\node_modules\.prisma\client\query_engine-windows.dll.node.tmp20656' -> 'C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12\node_modules\.prisma\client\query_engine-windows.dll.node'
+
+
