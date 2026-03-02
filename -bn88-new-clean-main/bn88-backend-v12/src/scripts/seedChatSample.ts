@@ -3,15 +3,36 @@ import * as path from "node:path";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
+function resolveRepoRoot(startDir: string): string {
+  let dir = startDir;
+  while (true) {
+    const hasBackend = fs.existsSync(path.join(dir, "bn88-backend-v12"));
+    const hasWorkplan = fs.existsSync(path.join(dir, "WORKPLAN_MASTER.md"));
+    if (hasBackend && hasWorkplan) return dir;
+
+    const parent = path.dirname(dir);
+    if (parent === dir) return startDir;
+    dir = parent;
+  }
+}
+
+const cwd = process.cwd();
+const repoRoot = resolveRepoRoot(cwd);
+const backendRoot = fs.existsSync(path.join(repoRoot, "bn88-backend-v12"))
+  ? path.join(repoRoot, "bn88-backend-v12")
+  : cwd;
+
 const envCandidates = [
-  path.resolve(process.cwd(), ".env"),
-  path.resolve(process.cwd(), "bn88-backend-v12/.env"),
+  path.resolve(cwd, ".env"),
+  path.resolve(cwd, "bn88-backend-v12/.env"),
+  path.resolve(backendRoot, ".env"),
 ];
 const envPath = envCandidates.find((p) => fs.existsSync(p));
 dotenv.config(envPath ? { path: envPath } : undefined);
 
+const fallbackDbPath = path.resolve(backendRoot, "prisma/dev.db");
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = `file:${path.resolve(process.cwd(), "prisma/dev.db")}`;
+  process.env.DATABASE_URL = `file:${fallbackDbPath}`;
 }
 
 const prisma = new PrismaClient();
@@ -19,7 +40,12 @@ const prisma = new PrismaClient();
 async function main() {
   const tenant = process.env.TENANT_DEFAULT || "bn9";
   const dbUrl = String(process.env.DATABASE_URL || "").trim() || "(not set)";
+
+  console.log(`[seed:chat] cwd=${cwd}`);
   console.log(`[seed:chat] DATABASE_URL=${dbUrl}`);
+  if (dbUrl === `file:${fallbackDbPath}`) {
+    console.log(`[seed:chat] fallback DB path=${fallbackDbPath}`);
+  }
 
   const sessionCount = await prisma.chatSession.count();
   if (sessionCount > 0) {
@@ -38,11 +64,13 @@ async function main() {
 
   if (!bot) {
     throw new Error(
-      `[seed:chat] no bot found for tenant=${tenant}. Please run "npm run seed:dev" first, or create a Bot for tenant=${tenant} with platform=line.`
+      `[seed:chat] no bot found for tenant=${tenant}. Please run \"npm run seed:dev\" first, or create a Bot for tenant=${tenant} with platform=line.`
     );
   }
 
-  console.log(`[seed:chat] selected tenant=${tenant} botId=${bot.id} platform=${bot.platform || "line"}`);
+  console.log(
+    `[seed:chat] selected tenant=${tenant} botId=${bot.id} platform=${bot.platform || "line"}`
+  );
 
   const now = new Date();
   const userId = `U_DUMMY_${Date.now()}`;
