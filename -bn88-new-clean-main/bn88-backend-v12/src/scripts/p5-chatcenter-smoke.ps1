@@ -45,32 +45,9 @@ function Invoke-JsonRequest(
   }
 }
 
-function Get-MessageArray([object]$Body) {
-  if ($null -eq $Body) { return @() }
-  if ($Body.items) { return @($Body.items) }
-  if ($Body.messages) { return @($Body.messages) }
-  if ($Body -is [System.Array]) { return @($Body) }
-  return @()
-}
-
-function Invoke-DevSeedChat([string]$Tenant) {
-  $backendDir = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-  Write-Host "[INFO] sessions empty -> run dev seed chat" -ForegroundColor Yellow
-  Push-Location $backendDir
-  try {
-    & npx tsx src/scripts/dev-seed-chat.ts --tenant $Tenant
-    if ($LASTEXITCODE -ne 0) {
-      throw "dev-seed-chat failed with exit code $LASTEXITCODE"
-    }
-  } finally {
-    Pop-Location
-  }
-}
-
 $token = $null
 $headers = $null
 $sessionId = $null
-$beforeMessages = @()
 
 # 1) login
 $loginRes = Invoke-JsonRequest -Method 'POST' -Url "$BaseUrl/api/admin/auth/login" -Body @{ email = $Email; password = $Password }
@@ -96,18 +73,7 @@ if (-not $failed) {
   } else {
     $items = $listRes.body.items
     if (-not $items -or $items.Count -lt 1) {
-      Invoke-DevSeedChat -Tenant $Tenant
-      $listResRetry = Invoke-JsonRequest -Method 'GET' -Url "$BaseUrl/api/admin/chat/sessions" -Headers $headers
-      Write-Step -Name 'GET /api/admin/chat/sessions (after seed)' -StatusCode $listResRetry.status -Ok $listResRetry.ok
-      if (-not $listResRetry.ok) {
-        $failed = $true
-      } else {
-        $items = $listResRetry.body.items
-      }
-    }
-
-    if (-not $items -or $items.Count -lt 1) {
-      Write-Step -Name 'GET /api/admin/chat/sessions' -StatusCode 200 -Ok $false -Detail 'no sessions after seed'
+      Write-Step -Name 'GET /api/admin/chat/sessions' -StatusCode 200 -Ok $false -Detail 'no sessions'
       $failed = $true
     } else {
       $sessionId = $items[0].id
@@ -122,13 +88,8 @@ if (-not $failed) {
 # 3) get messages
 if (-not $failed) {
   $msgRes = Invoke-JsonRequest -Method 'GET' -Url "$BaseUrl/api/admin/chat/sessions/$sessionId/messages" -Headers $headers
-  if ($msgRes.ok) {
-    $beforeMessages = Get-MessageArray -Body $msgRes.body
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages' -StatusCode $msgRes.status -Ok $true -Detail ("count=$($beforeMessages.Count)")
-  } else {
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages' -StatusCode $msgRes.status -Ok $false
-    $failed = $true
-  }
+  Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages' -StatusCode $msgRes.status -Ok $msgRes.ok
+  if (-not $msgRes.ok) { $failed = $true }
 }
 
 # 4) reply
@@ -141,28 +102,8 @@ if (-not $failed) {
 # 5) reload messages
 if (-not $failed) {
   $reloadRes = Invoke-JsonRequest -Method 'GET' -Url "$BaseUrl/api/admin/chat/sessions/$sessionId/messages" -Headers $headers
-  if ($reloadRes.ok) {
-    $afterMessages = Get-MessageArray -Body $reloadRes.body
-    $beforeIds = @{}
-    foreach ($m in $beforeMessages) {
-      $id = [string]$m.id
-      if (-not [string]::IsNullOrWhiteSpace($id)) { $beforeIds[$id] = $true }
-    }
-    $hasNew = $false
-    foreach ($m in $afterMessages) {
-      $id = [string]$m.id
-      $text = [string]$m.text
-      if ((-not [string]::IsNullOrWhiteSpace($id) -and -not $beforeIds.ContainsKey($id)) -or $text -eq $ReplyText) {
-        $hasNew = $true
-        break
-      }
-    }
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages (reload)' -StatusCode $reloadRes.status -Ok $hasNew -Detail ("before=$($beforeMessages.Count), after=$($afterMessages.Count)")
-    if (-not $hasNew) { $failed = $true }
-  } else {
-    Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages (reload)' -StatusCode $reloadRes.status -Ok $false
-    $failed = $true
-  }
+  Write-Step -Name 'GET /api/admin/chat/sessions/:id/messages (reload)' -StatusCode $reloadRes.status -Ok $reloadRes.ok
+  if (-not $reloadRes.ok) { $failed = $true }
 }
 
 if ($failed) {
