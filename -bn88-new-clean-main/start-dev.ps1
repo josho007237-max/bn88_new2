@@ -27,6 +27,30 @@ if (-not (Test-Path $frontendPath)) {
     exit 1
 }
 
+
+# Guard: avoid duplicate runs on required ports
+$requiredPorts = @(3000, 5555, 6380)
+$busy = @()
+foreach ($port in $requiredPorts) {
+    $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $conn) { continue }
+
+    if ($port -eq 6380) {
+        $redisRunning = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
+        if ($redisRunning -match '^bn88-redis$') {
+            Write-Host "WARN: port 6380 is in use by running container 'bn88-redis' (allowed)." -ForegroundColor Yellow
+            Write-Host "      If you need a clean restart: .\stop-dev.ps1 (this will docker rm -f bn88-redis)" -ForegroundColor Yellow
+            continue
+        }
+    }
+
+    $busy += $port
+}
+if ($busy.Count -gt 0) {
+    Write-Host "ERROR: Detected active listener(s) on port(s): $($busy -join ', ')" -ForegroundColor Red
+    Write-Host "Please run .\stop-dev.ps1 first, then start again." -ForegroundColor Yellow
+    exit 1
+}
 Write-Host "Checking environment files..." -ForegroundColor Yellow
 
 # Ensure .env files exist; create from .env.example if missing
@@ -66,7 +90,7 @@ Start-Sleep -Seconds 2
 
 # Frontend window
 Write-Host "Starting Frontend Server (Port 5555)..." -ForegroundColor Green
-$frontendCommand = "cd `"$frontendPath`"; Write-Host '=== BN88 Frontend Dashboard ===' -ForegroundColor Cyan; Write-Host 'Port: 5555' -ForegroundColor Green; Write-Host ''; npm run dev"
+$frontendCommand = "cd `"$frontendPath`"; Write-Host '=== BN88 Frontend Dashboard ===' -ForegroundColor Cyan; Write-Host 'Port: 5555' -ForegroundColor Green; Write-Host ''; npm run dev -- --port 5555"
 Start-Process pwsh -ArgumentList "-NoExit", "-Command", $frontendCommand
 
 Write-Host ""
