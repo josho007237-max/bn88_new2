@@ -23,6 +23,15 @@ function assertTrue(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+async function preflightBackend(baseUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl}/api/health`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
   const text = await res.text();
@@ -35,6 +44,14 @@ async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
 
 async function main() {
   console.log(`[smoke:p5] baseUrl=${BASE_URL} tenant=${TENANT}`);
+
+  const backendReady = await preflightBackend(BASE_URL);
+  if (!backendReady) {
+    console.error(
+      `Backend not reachable at ${BASE_URL}. Start backend first: npm run dev (PORT 3000) แล้วค่อยรัน smoke:p5`,
+    );
+    process.exit(1);
+  }
 
   const login = await fetchJson<LoginResponse>(`${BASE_URL}/api/admin/auth/login`, {
     method: "POST",
@@ -70,7 +87,7 @@ async function main() {
   assertTrue(hasHello, 'missing inbound sample message senderType="user" text="hello"');
   console.log("[smoke:p5] messages OK found user/hello");
 
-  const reply = await fetchJson<{ ok?: boolean }>(
+  const reply = await fetchJson<{ ok?: boolean; delivered?: boolean }>(
     `${BASE_URL}/api/admin/chat/sessions/${encodeURIComponent(sessionId!)}/reply`,
     {
       method: "POST",
@@ -79,6 +96,11 @@ async function main() {
     },
   );
   assertTrue(reply.ok === true, "reply ok != true");
+  if (reply.delivered === false) {
+    console.log(
+      "NOTE: delivered=false is expected for seeded sessions (U_DUMMY). For real delivery, use a real LINE inbound session + set channelAccessToken in BotSecret.",
+    );
+  }
   console.log("[smoke:p5] reply OK");
   console.log("[smoke:p5] PASS");
 }
