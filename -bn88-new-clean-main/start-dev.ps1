@@ -77,6 +77,17 @@ if (-not (Test-Path $frontendEnv)) {
     }
 }
 
+$secretLine = $null
+if (Test-Path $backendEnv) {
+    $secretLine = Get-Content $backendEnv | Where-Object { $_ -match '^SECRET_ENC_KEY_BN9=' } | Select-Object -First 1
+}
+$secretValue = if ($secretLine) { ($secretLine -split '=', 2)[1].Trim() } else { '' }
+if (-not $secretValue -or $secretValue.Length -ne 32) {
+    Write-Host "ERROR: Missing/invalid SECRET_ENC_KEY_BN9 (must be 32 chars) in $backendEnv" -ForegroundColor Red
+    Write-Host "Fix: cd bn88-backend-v12; node .\scripts\gen-dev-secret-key.mjs" -ForegroundColor Yellow
+    exit 1
+}
+
 Write-Host ""
 Write-Host "Starting development servers..." -ForegroundColor Cyan
 Write-Host ""
