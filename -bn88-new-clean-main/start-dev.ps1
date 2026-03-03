@@ -86,7 +86,17 @@ Write-Host "Starting Backend Server (Port 3000)..." -ForegroundColor Green
 $backendCommand = "cd `"$backendPath`"; Write-Host '=== BN88 Backend Server ===' -ForegroundColor Cyan; Write-Host 'Port: 3000' -ForegroundColor Green; Write-Host ''; npm run dev"
 Start-Process pwsh -ArgumentList "-NoExit", "-Command", $backendCommand
 
-Start-Sleep -Seconds 2
+$backendReady = $false
+for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Milliseconds 500
+    $listen3000 = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($listen3000) { $backendReady = $true; break }
+}
+if (-not $backendReady) {
+    Write-Host "ERROR: Backend did not bind to :3000 in time (possible crash)." -ForegroundColor Red
+    Write-Host "Manual run: cd bn88-backend-v12; npm run dev" -ForegroundColor Yellow
+    exit 1
+}
 
 # Frontend window
 Write-Host "Starting Frontend Server (Port 5555)..." -ForegroundColor Green
