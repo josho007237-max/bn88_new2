@@ -1,8 +1,12 @@
 param(
-  [string]$Root = 'C:\BN88\BN88-new-clean'
+  [string]$Root = 'C:\Go23_th\bn88_new2\-bn88-new-clean-main'
 )
 
 $ErrorActionPreference = 'Stop'
+
+Write-Host ('[INIT] PWD = {0}' -f (Get-Location).Path) -ForegroundColor Cyan
+Write-Host "[INIT] ROOT (requested) = $Root" -ForegroundColor Cyan
+Write-Host "[INIT] ScriptPath = $PSScriptRoot" -ForegroundColor Cyan
 
 function Write-Step([string]$Step, [string]$Message) {
   Write-Host "[$Step] $Message" -ForegroundColor Cyan
@@ -66,11 +70,27 @@ if (-not (Test-Path $Root)) {
   Write-Fail 'INIT' "root not found: $Root"
 }
 
+if ((Get-Location).Path -ne $Root) {
+  Write-Step 'INIT' "switching to root: $Root"
+  Set-Location $Root
+}
+Write-Host ('[INIT] PWD (active) = {0}' -f (Get-Location).Path) -ForegroundColor Cyan
+Write-Host "[INIT] ROOT (active) = $Root" -ForegroundColor Cyan
+
+$expectedScript = Join-Path $Root 'scripts\run-full.ps1'
+if (-not (Test-Path $expectedScript)) {
+  throw "expected script not found: $expectedScript"
+}
+
 $backendDir = Join-Path $Root 'bn88-backend-v12'
 $frontendDir = Join-Path $Root 'bn88-frontend-dashboard-v12'
 if (-not (Test-Path $backendDir)) { Write-Fail 'INIT' "backend dir not found: $backendDir" }
 if (-not (Test-Path $frontendDir)) { Write-Fail 'INIT' "frontend dir not found: $frontendDir" }
-Write-Pass 'INIT' 'project directories found'
+$backendPkg = Join-Path $backendDir 'package.json'
+$frontendPkg = Join-Path $frontendDir 'package.json'
+if (-not (Test-Path $backendPkg)) { throw "expected package.json not found: $backendPkg" }
+if (-not (Test-Path $frontendPkg)) { throw "expected package.json not found: $frontendPkg" }
+Write-Pass 'INIT' 'project directories and package.json files found'
 
 Write-Step 'STEP1' 'kill listeners on 3000/5555/6380'
 Stop-PortOwners -Ports @(3000, 5555, 6380)
@@ -133,12 +153,12 @@ try {
   npm ci
   if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
   try {
-    Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev' | Out-Null
+    Start-Process -FilePath $pwshCmd -WorkingDirectory $frontendDir -ArgumentList '-NoExit', '-Command', 'npm run dev -- --port 5555' | Out-Null
     Write-Pass 'STEP4' 'dashboard started in new window'
   } catch {
     Write-Host "[STEP4] WARN: cannot open new window; run manually:" -ForegroundColor Yellow
     Write-Host "  cd $frontendDir" -ForegroundColor Yellow
-    Write-Host '  npm run dev' -ForegroundColor Yellow
+    Write-Host '  npm run dev -- --port 5555' -ForegroundColor Yellow
   }
 } catch {
   Write-Fail 'STEP4' $_
@@ -148,10 +168,8 @@ try {
 
 Write-Step 'STEP5' 'quick check commands'
 Write-Host '  curl http://127.0.0.1:3000/api/health'
-Write-Host '  $body = @{ email = "root@bn9.local"; password = "bn9@12345" } | ConvertTo-Json'
-Write-Host '  $login = irm -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Body $body'
-Write-Host '  $token = $login.token'
-Write-Host '  irm -Method Get -Uri "http://127.0.0.1:3000/api/admin/chat/sessions?limit=20" -Headers @{ Authorization = "Bearer $token"; "x-tenant" = "bn9" }'
+Write-Host '  netstat -ano | findstr /R ":3000 :5555 :6380"'
+Write-Host '  http://127.0.0.1:5555/'
 Write-Pass 'STEP5' 'printed quick check commands'
 
 if ($backendStarted) {
