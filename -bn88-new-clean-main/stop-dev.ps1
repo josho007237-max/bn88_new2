@@ -4,6 +4,7 @@
 # Stops processes listening on development ports:
 # - 3000 (Backend)
 # - 5555 (Frontend)
+# - 6380 (Redis docker port binding)
 # - 5556..5566 (Prisma Studio / auxiliary dev ports)
 # ===============================================
 
@@ -12,9 +13,26 @@ Write-Host "  BN88 Development Stack Shutdown" -ForegroundColor Cyan
 Write-Host "===============================================" -ForegroundColor Cyan
 Write-Host ""
 
-$ports = @(3000, 5555) + (5556..5566)
+$ports = @(3000, 5555, 6380) + (5556..5566)
 $seenProcesses = @{}
 $killed = @()
+
+$dockerProtected = @('com.docker.backend', 'Docker Desktop')
+$dockerReady = $false
+try {
+    docker version | Out-Null
+    if ($LASTEXITCODE -eq 0) { $dockerReady = $true }
+} catch {
+    $dockerReady = $false
+}
+
+if ($dockerReady) {
+    Write-Host "Trying: docker rm -f bn88-redis" -ForegroundColor Yellow
+    docker rm -f bn88-redis 2>$null | Out-Null
+} else {
+    Write-Host "WARN: Docker Desktop ยังไม่รัน จึงหยุด bn88-redis ไม่ได้" -ForegroundColor Yellow
+    Write-Host "      จะข้ามการเคลียร์พอร์ต 6380 และไม่ kill process พอร์ตนี้" -ForegroundColor Yellow
+}
 
 foreach ($port in $ports) {
     Write-Host "Checking port $port..." -ForegroundColor Gray
@@ -28,6 +46,16 @@ foreach ($port in $ports) {
         $seenProcesses[$procId] = $true
         $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
         if (-not $proc) { continue }
+
+        if ($port -eq 6380) {
+            Write-Host "  -> Skip PID=$procId on port 6380 (Docker-safe mode)" -ForegroundColor Yellow
+            continue
+        }
+
+        if ($dockerProtected -contains $proc.ProcessName) {
+            Write-Host "  -> Skip protected Docker process PID=$procId ($($proc.ProcessName))" -ForegroundColor Yellow
+            continue
+        }
 
         Write-Host "  -> Stopping PID=$procId ($($proc.ProcessName))" -ForegroundColor Yellow
         try {
