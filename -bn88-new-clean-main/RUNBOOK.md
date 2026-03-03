@@ -5,16 +5,6 @@
 **Root:** `C:\Go23_th\bn88_new2\-bn88-new-clean-main`  
 **Ports:** backend `3000`, dashboard `5555`, redis `6380`
 
-### Prerequisite (Backend .env)
-`bn88-backend-v12/.env` must include `SECRET_ENC_KEY_BN9` with exactly 32 chars.
-
-```powershell
-cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12
-node .\scripts\gen-dev-secret-key.mjs
-# put into .env
-SECRET_ENC_KEY_BN9=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
 ### Start
 ```powershell
 cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
