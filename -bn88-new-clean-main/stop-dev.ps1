@@ -18,20 +18,24 @@ $seenProcesses = @{}
 $killed = @()
 
 $dockerProtected = @('com.docker.backend', 'Docker Desktop')
-$dockerReady = $false
-try {
-    docker version | Out-Null
-    if ($LASTEXITCODE -eq 0) { $dockerReady = $true }
-} catch {
-    $dockerReady = $false
-}
-
-if ($dockerReady) {
-    Write-Host "Trying: docker rm -f bn88-redis" -ForegroundColor Yellow
+$port6380Busy = Get-NetTCPConnection -LocalPort 6380 -State Listen -ErrorAction SilentlyContinue
+if ($port6380Busy) {
+    Write-Host "Port 6380 is busy. Trying: docker rm -f bn88-redis" -ForegroundColor Yellow
     docker rm -f bn88-redis 2>$null | Out-Null
-} else {
-    Write-Host "WARN: Docker Desktop ยังไม่รัน จึงหยุด bn88-redis ไม่ได้" -ForegroundColor Yellow
-    Write-Host "      จะข้ามการเคลียร์พอร์ต 6380 และไม่ kill process พอร์ตนี้" -ForegroundColor Yellow
+    Start-Sleep -Milliseconds 500
+    $port6380Busy = Get-NetTCPConnection -LocalPort 6380 -State Listen -ErrorAction SilentlyContinue
+    if ($port6380Busy) {
+        $dockerOwner = $false
+        foreach ($conn in $port6380Busy) {
+            $p = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+            if ($p -and ($dockerProtected -contains $p.ProcessName)) { $dockerOwner = $true }
+        }
+        if ($dockerOwner) {
+            Write-Host "Port 6380 is still owned by Docker process. Will NOT kill Docker Desktop/com.docker.backend." -ForegroundColor Yellow
+            Write-Host "Please stop Redis container manually (docker rm -f bn88-redis) or free 6380, then retry." -ForegroundColor Yellow
+            exit 1
+        }
+    }
 }
 
 foreach ($port in $ports) {
@@ -46,11 +50,6 @@ foreach ($port in $ports) {
         $seenProcesses[$procId] = $true
         $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
         if (-not $proc) { continue }
-
-        if ($port -eq 6380) {
-            Write-Host "  -> Skip PID=$procId on port 6380 (Docker-safe mode)" -ForegroundColor Yellow
-            continue
-        }
 
         if ($dockerProtected -contains $proc.ProcessName) {
             Write-Host "  -> Skip protected Docker process PID=$procId ($($proc.ProcessName))" -ForegroundColor Yellow

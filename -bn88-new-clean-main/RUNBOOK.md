@@ -5,16 +5,6 @@
 **Root:** `C:\Go23_th\bn88_new2\-bn88-new-clean-main`  
 **Ports:** backend `3000`, dashboard `5555`, redis `6380`
 
-### Prerequisite (Backend .env)
-`bn88-backend-v12/.env` must include `SECRET_ENC_KEY_BN9` with exactly 32 chars.
-
-```powershell
-cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12
-node .\scripts\gen-dev-secret-key.mjs
-# put into .env
-SECRET_ENC_KEY_BN9=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
 ### Start
 ```powershell
 cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
@@ -59,6 +49,7 @@ This runbook provides operational procedures for running and managing the BN88 p
 - [Health Checks](#health-checks)
 - [Troubleshooting](#troubleshooting)
 - [Production Deployment](#production-deployment)
+- [LINE E2E](#line-e2e)
 
 ## 🚀 Quick Start
 
@@ -733,4 +724,79 @@ $env:ALLOW_SSE_QUERY_TOKEN="1"
 curl.exe -i "http://127.0.0.1:3000/api/webhooks/line"
 
 # ดู log ขณะยิง webhook จริงจาก LINE console/tunnel
+```
+
+
+## LINE E2E
+
+### 1) ใส่ BotSecret (channelSecret / channelAccessToken)
+
+> โหมด minimal (ไม่ต้องผ่าน UI): ใช้ seed script ที่มีอยู่
+
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
+.\scripts\seed-line-secret.ps1 `
+  -BotId "dev-bot" `
+  -Tenant "bn9" `
+  -ApiBase "http://127.0.0.1:3000" `
+  -ChannelSecret "<LINE_CHANNEL_SECRET>" `
+  -ChannelAccessToken "<LINE_CHANNEL_ACCESS_TOKEN>"
+```
+
+สคริปต์นี้จะเรียก `npm run dev:seed:line` เพื่อ upsert `BotSecret.channelSecret` และ `BotSecret.channelAccessToken` ให้ bot ตาม `BotId` เดิม (ไม่เปลี่ยน schema/API เดิม)
+
+### 2) Webhook path ที่ต้องตั้งใน LINE console
+
+ใช้ path นี้:
+
+```
+/api/webhooks/line?tenant=bn9&botId=dev-bot
+```
+
+ดังนั้น URL เต็ม (ตัวอย่างโปรดักชัน):
+
+```
+https://api.bn9.app/api/webhooks/line?tenant=bn9&botId=dev-bot
+```
+
+> รองรับ route แบบ path param ด้วย (`/api/webhooks/line/:tenant/:botId`) แต่แนะนำ query form ตามด้านบนเพื่อตรงกับเอกสารตรวจเช็ค
+
+### 3) Cloudflared tunnel + DNS route + verify ใน LINE console
+
+รัน tunnel (ให้มี route `api.bn9.app` หรือ `hook.bn9.app` มาที่ `http://127.0.0.1:3000`):
+
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
+cloudflared tunnel --config .\cloudflared\config-bn88-api.yml run bn88-api
+```
+
+ถ้ายังไม่ผูก DNS route ให้ทำครั้งเดียว:
+
+```powershell
+cloudflared tunnel route dns bn88-api api.bn9.app
+cloudflared tunnel route dns bn88-api hook.bn9.app
+```
+
+ใน LINE Developers Console (Messaging API):
+1. วาง Webhook URL ตามข้อ 2
+2. กด **Verify** ให้ผ่าน (ต้องได้ HTTP 200)
+3. เปิด **Use webhook** = Enabled
+
+### 4) คำสั่งเช็ค public health + ดู inbound log
+
+```powershell
+# เช็คจาก public domain
+curl https://api.bn9.app/api/health
+
+# รัน preflight check รวม
+.\scripts\line-e2e-check.ps1 -PublicBase https://api.bn9.app
+```
+
+ตัวอย่างดู inbound log ของ LINE webhook:
+
+```powershell
+cd .\bn88-backend-v12
+npm run dev *>&1 | Tee-Object -FilePath ..\logs\backend-dev.log
+# อีกหน้าต่างหนึ่ง
+Get-Content ..\logs\backend-dev.log -Wait | Select-String "LINE webhook|LINE verify|invalid_signature"
 ```
