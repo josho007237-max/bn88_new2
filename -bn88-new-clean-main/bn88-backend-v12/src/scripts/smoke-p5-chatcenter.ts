@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 type LoginResponse = {
   ok?: boolean;
   token?: string;
