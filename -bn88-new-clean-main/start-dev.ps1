@@ -27,13 +27,6 @@ if (-not (Test-Path $frontendPath)) {
     exit 1
 }
 
-$dockerReady = $false
-try {
-    docker version | Out-Null
-    if ($LASTEXITCODE -eq 0) { $dockerReady = $true }
-} catch {
-    $dockerReady = $false
-}
 
 # Guard: avoid duplicate runs on required ports
 $requiredPorts = @(3000, 5555, 6380)
@@ -43,14 +36,10 @@ foreach ($port in $requiredPorts) {
     if (-not $conn) { continue }
 
     if ($port -eq 6380) {
-        if ($dockerReady) {
-            $redisRunning = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
-            if ($redisRunning -match '^bn88-redis$') {
-                Write-Host "WARN: port 6380 is in use by running container 'bn88-redis' (allowed)." -ForegroundColor Yellow
-                Write-Host "      If you need a clean restart: .\stop-dev.ps1 (this will docker rm -f bn88-redis)" -ForegroundColor Yellow
-                continue
-            }
-        } else {
+        $redisRunning = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
+        if ($redisRunning -match '^bn88-redis$') {
+            Write-Host "WARN: port 6380 is in use by running container 'bn88-redis' (allowed)." -ForegroundColor Yellow
+            Write-Host "      If you need a clean restart: .\stop-dev.ps1 (this will docker rm -f bn88-redis)" -ForegroundColor Yellow
             continue
         }
     }
@@ -62,28 +51,6 @@ if ($busy.Count -gt 0) {
     Write-Host "Please run .\stop-dev.ps1 first, then start again." -ForegroundColor Yellow
     exit 1
 }
-$redisListen = Get-NetTCPConnection -LocalPort 6380 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $redisListen) {
-    if ($dockerReady) {
-        Write-Host "Redis on 6380 is not listening. Starting bn88-redis..." -ForegroundColor Yellow
-        docker rm -f bn88-redis 2>$null | Out-Null
-        docker run -d --name bn88-redis -p 6380:6379 redis:7-alpine 2>$null | Out-Null
-    } else {
-        Write-Host "ERROR: Redis port 6380 is not ready and Docker Desktop is not running." -ForegroundColor Red
-        Write-Host "Step 1: Open Docker Desktop" -ForegroundColor Yellow
-        Write-Host "Step 2: Re-run .\start-dev.ps1" -ForegroundColor Yellow
-        exit 1
-    }
-}
-
-$redisOwners = Get-NetTCPConnection -LocalPort 6380 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
-if ($redisOwners -and $redisOwners.Count -ge 2) {
-    Write-Host "WARN: Found multiple listening processes on port 6380: $($redisOwners -join ', ')" -ForegroundColor Yellow
-    if ($dockerReady) {
-        Write-Host "      If Redis is stale, run: docker rm -f bn88-redis" -ForegroundColor Yellow
-    }
-}
-
 Write-Host "Checking environment files..." -ForegroundColor Yellow
 
 # Ensure .env files exist; create from .env.example if missing
@@ -131,14 +98,14 @@ $backendCommand = "cd `"$backendPath`"; Write-Host '=== BN88 Backend Server ==='
 Start-Process pwsh -ArgumentList "-NoExit", "-Command", $backendCommand
 
 $backendReady = $false
-for ($i = 0; $i -lt 50; $i++) {
+for ($i = 0; $i -lt 20; $i++) {
     Start-Sleep -Milliseconds 500
     $listen3000 = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($listen3000) { $backendReady = $true; break }
 }
 if (-not $backendReady) {
     Write-Host "ERROR: Backend did not bind to :3000 in time (possible crash)." -ForegroundColor Red
-    Write-Host "Manual debug: open terminal and run: cd bn88-backend-v12; npm run dev" -ForegroundColor Yellow
+    Write-Host "Manual run: cd bn88-backend-v12; npm run dev" -ForegroundColor Yellow
     exit 1
 }
 
