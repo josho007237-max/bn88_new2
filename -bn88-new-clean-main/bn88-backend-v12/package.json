@@ -18,6 +18,7 @@
     "check:line": "pwsh -ExecutionPolicy Bypass -File ./src/scripts/dev-check-line.ps1",
     "dev:check:chat": "tsx src/scripts/dev-check-chat.ts",
     "check:extended": "pwsh -ExecutionPolicy Bypass -File ./src/scripts/dev-check-extended.ps1",
+    "db:info": "tsx src/scripts/db-info.ts",
     "seed": "tsx src/scripts/seed.ts",
     "seed:admin": "tsx src/scripts/seedAdmin.ts",
     "seed:bot": "tsx src/scripts/seedBot.ts",
@@ -39,6 +40,7 @@
     "prisma:generate:safe": "prisma generate",
     "predev:backend": "npm run prisma:generate:safe",
     "predev:port": "npm run prisma:generate:safe",
+    "smoke:p5": "tsx src/scripts/smoke-p5-chatcenter.ts",
     "smoke:sse": "node ./scripts/smoke-sse.mjs",
     "seed:chat": "tsx src/scripts/seedChatSample.ts"
   },
