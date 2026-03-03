@@ -13,34 +13,10 @@ function Fail([string]$step, [string]$m, [string]$fix) { Write-Host "[FAIL][$ste
 $HasFail = $false
 $FailSteps = @()
 
-$dockerReady = $false
-try {
-  docker version | Out-Null
-  if ($LASTEXITCODE -eq 0) { $dockerReady = $true }
-} catch {
-  $dockerReady = $false
-}
-
 $ports = @(3000, 5555, 6380)
 foreach ($port in $ports) {
   $listen = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-  if ($listen) {
-    Pass "port $port is listening"
-    continue
-  }
-
-  if ($port -eq 6380 -and -not $dockerReady) {
-    Write-Host "[SKIP][REDIS] Docker Desktop ยังไม่รัน: ข้าม Redis check ที่พอร์ต 6380" -ForegroundColor Yellow
-    Write-Host "        Fix: เปิด Docker Desktop แล้วรัน .\scripts\quick-check.ps1 ใหม่" -ForegroundColor Yellow
-    continue
-  }
-
-  Fail 'PORT' "port $port is NOT listening" "Run .\start-dev.ps1 (or check netstat -ano | findstr :$port)"
-}
-
-$listen3000 = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $listen3000) {
-  Fail 'BACKEND' 'Backend not running' 'Run: cd bn88-backend-v12; npm run dev'
+  if ($listen) { Pass "port $port is listening" } else { Fail 'PORT' "port $port is NOT listening" "Run .\start-dev.ps1 (or check netstat -ano | findstr :$port)" }
 }
 
 try {
