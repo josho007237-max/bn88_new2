@@ -33,7 +33,18 @@ $requiredPorts = @(3000, 5555, 6380)
 $busy = @()
 foreach ($port in $requiredPorts) {
     $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($conn) { $busy += $port }
+    if (-not $conn) { continue }
+
+    if ($port -eq 6380) {
+        $redisRunning = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
+        if ($redisRunning -match '^bn88-redis$') {
+            Write-Host "WARN: port 6380 is in use by running container 'bn88-redis' (allowed)." -ForegroundColor Yellow
+            Write-Host "      If you need a clean restart: .\stop-dev.ps1 (this will docker rm -f bn88-redis)" -ForegroundColor Yellow
+            continue
+        }
+    }
+
+    $busy += $port
 }
 if ($busy.Count -gt 0) {
     Write-Host "ERROR: Detected active listener(s) on port(s): $($busy -join ', ')" -ForegroundColor Red
