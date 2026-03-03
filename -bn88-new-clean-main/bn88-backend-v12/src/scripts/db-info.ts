@@ -3,6 +3,8 @@ import * as path from "node:path";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
+// Usage: set DATABASE_URL=file:./prisma/dev.db before running `npm run db:info`.
+
 function resolveRepoRoot(startDir: string): string {
   let dir = startDir;
   while (true) {
