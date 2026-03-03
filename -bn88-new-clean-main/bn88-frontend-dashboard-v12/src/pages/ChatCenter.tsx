@@ -49,7 +49,6 @@ import {
   deleteEngagementMessage,
   TENANT,
   getAdminAuthHeaders,
-  fetchLineContentBlob as fetchLineContentBlobViaApi,
   downloadObjectUrl,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
@@ -446,11 +445,21 @@ const ChatCenter: React.FC = () => {
   const [imgUrlMap, setImgUrlMap] = useState<Record<string, string>>({});
   const [imgErrorMap, setImgErrorMap] = useState<Record<string, string>>({});
   const imgUrlCreatedRef = useRef<Record<string, string>>({});
+  const buildLineContentUrl = useCallback(
+    (messageId: string) => `${getApiBase()}/admin/chat/line-content/${encodeURIComponent(messageId)}`,
+    []
+  );
   const fetchLineContentBlob = useCallback(
     async (messageId: string): Promise<Blob> => {
-      return fetchLineContentBlobViaApi(messageId);
+      const token = getToken();
+      const headers: Record<string, string> = { "x-tenant": TENANT };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(buildLineContentUrl(messageId), { headers });
+      if (!res.ok) throw new Error(`line_content_fetch_failed:${res.status}`);
+      return await res.blob();
     },
-    []
+    [buildLineContentUrl]
   );
 
   // map ไฟล์ (LINE) ที่โหลดเป็น blob แล้ว
