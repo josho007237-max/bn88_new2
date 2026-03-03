@@ -29,11 +29,23 @@ try {
 $token = $null
 try {
   $loginBody = @{ email = $Email; password = $Password } | ConvertTo-Json
-  $loginRes = Invoke-RestMethod -Uri "$BaseUrl/api/admin/auth/login" -Method Post -ContentType 'application/json' -Body $loginBody
+  $loginHeaders = @{ 'x-tenant' = $Tenant }
+  $loginRes = Invoke-RestMethod -Uri "$BaseUrl/api/admin/auth/login" -Method Post -ContentType 'application/json' -Headers $loginHeaders -Body $loginBody
   $token = $loginRes.token
-  if ($token) { Pass 'login success (token received)' } else { Fail 'LOGIN' 'login response has no token' "Use valid email/password; sessions call also requires x-tenant: $Tenant" }
+  if ($loginRes.ok -eq $false -and $loginRes.message -eq 'not_found') {
+    Fail 'LOGIN' 'login returned {ok:false,message:not_found}' "missing x-tenant header (set -Headers @{ 'x-tenant' = '$Tenant' })"
+  } elseif ($token) {
+    Pass 'login success (token received)'
+  } else {
+    Fail 'LOGIN' 'login response has no token' "Use valid email/password and x-tenant header: $Tenant"
+  }
 } catch {
-  Fail 'LOGIN' "login error: $($_.Exception.Message)" "Retry: Invoke-RestMethod -Method Post -Uri '$BaseUrl/api/admin/auth/login' -ContentType 'application/json' -Body (@{email='$Email';password='$Password'} | ConvertTo-Json)"
+  $resp = $_.ErrorDetails.Message
+  if ($resp -and $resp -match '"ok"\s*:\s*false' -and $resp -match '"message"\s*:\s*"not_found"') {
+    Fail 'LOGIN' 'login returned {ok:false,message:not_found}' "missing x-tenant header (set -Headers @{ 'x-tenant' = '$Tenant' })"
+  } else {
+    Fail 'LOGIN' "login error: $($_.Exception.Message)" "Retry: Invoke-RestMethod -Method Post -Uri '$BaseUrl/api/admin/auth/login' -ContentType 'application/json' -Headers @{ 'x-tenant' = '$Tenant' } -Body (@{email='$Email';password='$Password'} | ConvertTo-Json)"
+  }
 }
 
 if ($token) {

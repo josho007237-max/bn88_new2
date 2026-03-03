@@ -27,6 +27,21 @@ if (-not (Test-Path $frontendPath)) {
     exit 1
 }
 
+$dockerReady = $false
+try {
+    $null = docker version --format '{{.Server.Version}}' 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $dockerReady = $true
+    }
+} catch {
+    $dockerReady = $false
+}
+
+if (-not $dockerReady) {
+    Write-Host "WARN: Docker Desktop is not ready; Redis container (port 6380) may not start and quick-check may FAIL on 6380." -ForegroundColor Yellow
+    Write-Host "      Fix: Start Docker Desktop, then rerun .\start-dev.ps1" -ForegroundColor Yellow
+}
+
 
 # Guard: avoid duplicate runs on required ports
 $requiredPorts = @(3000, 5555, 6380)
@@ -91,6 +106,20 @@ if (-not $secretValue -or $secretValue.Length -ne 32) {
 Write-Host ""
 Write-Host "Starting development servers..." -ForegroundColor Cyan
 Write-Host ""
+
+if ($dockerReady) {
+    $redisRunning = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
+    if (-not ($redisRunning -match '^bn88-redis$')) {
+        Write-Host "Starting Redis container (bn88-redis, port 6380)..." -ForegroundColor Green
+        $null = docker rm -f bn88-redis 2>$null
+        $null = docker run -d --name bn88-redis -p 6380:6379 redis:8-alpine 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  ✓ Redis container started" -ForegroundColor Green
+        } else {
+            Write-Host "WARN: Failed to start Redis container; port 6380 checks may FAIL." -ForegroundColor Yellow
+        }
+    }
+}
 
 # Backend window
 Write-Host "Starting Backend Server (Port 3000)..." -ForegroundColor Green
