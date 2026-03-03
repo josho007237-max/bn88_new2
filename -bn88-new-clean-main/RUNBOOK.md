@@ -1,5 +1,52 @@
 # RUNBOOK - BN88 New Clean
 
+## Phase 1 (Running 100%) - Start / Stop / Check
+
+**Root:** `C:\Go23_th\bn88_new2\-bn88-new-clean-main`  
+**Ports:** backend `3000`, dashboard `5555`, redis `6380`
+
+### Prerequisite (Backend .env)
+`bn88-backend-v12/.env` must include `SECRET_ENC_KEY_BN9` with exactly 32 chars.
+
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main\bn88-backend-v12
+node .\scripts\gen-dev-secret-key.mjs
+# put into .env
+SECRET_ENC_KEY_BN9=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+### Start
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
+.\start-dev.ps1
+```
+
+### Stop
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
+.\stop-dev.ps1
+```
+
+### Check (quick)
+```powershell
+cd C:\Go23_th\bn88_new2\-bn88-new-clean-main
+.\scripts\quick-check.ps1
+```
+
+### Manual checks
+```powershell
+netstat -ano | findstr /R ":3000 :5555 :6380"
+curl http://127.0.0.1:3000/api/health
+```
+
+### Login smoke (manual)
+```powershell
+$body = @{ email = "root@bn9.local"; password = "bn9@12345" } | ConvertTo-Json
+$login = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Body $body
+$token = $login.token
+Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3000/api/admin/chat/sessions?limit=1" -Headers @{ Authorization = "Bearer $token"; "x-tenant" = "bn9" }
+```
+
 This runbook provides operational procedures for running and managing the BN88 platform in development and production environments.
 
 ## 📋 Table of Contents
