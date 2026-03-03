@@ -40,9 +40,7 @@
     "predev:backend": "npm run prisma:generate:safe",
     "predev:port": "npm run prisma:generate:safe",
     "smoke:sse": "node ./scripts/smoke-sse.mjs",
-    "seed:chat": "tsx src/scripts/seedChatSample.ts",
-    "db:info": "tsx src/scripts/db-info.ts",
-    "smoke:p5": "tsx src/scripts/smoke-p5-chatcenter.ts"
+    "seed:chat": "tsx src/scripts/seedChatSample.ts"
   },
   "dependencies": {
     "@line/bot-sdk": "^10.5.0",
