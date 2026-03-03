@@ -28,6 +28,9 @@ npm run studio
 ```
 
 ## 5) Test login (PowerShell `irm`)
+
+> หมายเหตุ: ทุกคำสั่ง login ต้องส่ง header `x-tenant` (เช่น `bn9`) ไม่เช่นนั้นอาจได้ `{ok:false,message:"not_found"}`
+
 ```powershell
 $body = @{
   email = "admin@bn9.local"

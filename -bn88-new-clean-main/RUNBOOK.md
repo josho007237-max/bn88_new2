@@ -32,7 +32,7 @@ curl http://127.0.0.1:3000/api/health
 ### Login smoke (manual)
 ```powershell
 $body = @{ email = "root@bn9.local"; password = "bn9@12345" } | ConvertTo-Json
-$login = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Body $body
+$login = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/admin/auth/login" -ContentType "application/json" -Headers @{ "x-tenant" = "bn9" } -Body $body
 $token = $login.token
 Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3000/api/admin/chat/sessions?limit=1" -Headers @{ Authorization = "Bearer $token"; "x-tenant" = "bn9" }
 ```
