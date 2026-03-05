@@ -372,10 +372,9 @@ const adminApiEnabled = rawEnableAdminApi
 const adminApiReason = rawEnableAdminApi
   ? `ENABLE_ADMIN_API=${rawEnableAdminApi}`
   : `ENABLE_ADMIN_API is not set, default ${adminApiEnabled ? "enabled" : "disabled"} for NODE_ENV=${config.env.NODE_ENV}`;
-const adminApiLogContext = `NODE_ENV=${config.env.NODE_ENV} ENABLE_ADMIN_API(raw)=${rawEnableAdminApi || "(unset)"}`;
 
 if (adminApiEnabled) {
-  console.log(`[BOOT] Admin API enabled (${adminApiReason}; ${adminApiLogContext})`);
+  console.log(`[BOOT] Admin API enabled (${adminApiReason})`);
 
   // ✅ public
   app.use("/api/admin/auth", adminAuthRoutes);
@@ -399,7 +398,7 @@ if (adminApiEnabled) {
   // ✅ mount adminRouter ครั้งเดียว
   app.use("/api/admin", authGuard, adminRouter);
 } else {
-  console.log(`[BOOT] Admin API disabled (${adminApiReason}; ${adminApiLogContext})`);
+  console.log(`[BOOT] Admin API disabled (${adminApiReason})`);
 }
 
 /* 404 & Errors */

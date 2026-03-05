@@ -7,13 +7,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $loginUrl = "$BaseUrl/api/admin/auth/login"
-$bodyObj = @{ email = $Email; password = $Password }
-$body = $bodyObj | ConvertTo-Json -Compress -Depth 4
-$bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+$body = @{ email = $Email; password = $Password } | ConvertTo-Json -Compress
 
 Write-Host "[quick-check] POST $loginUrl"
 try {
-  $resp = Invoke-RestMethod -Uri $loginUrl -Method Post -ContentType 'application/json' -Body $bodyBytes -TimeoutSec 10
+  $resp = Invoke-RestMethod -Uri $loginUrl -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 10
 } catch {
   Write-Host "[quick-check][FAIL] login request failed: $loginUrl" -ForegroundColor Red
   throw
