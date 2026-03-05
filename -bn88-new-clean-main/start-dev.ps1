@@ -110,13 +110,20 @@ Write-Host ""
 if ($dockerReady) {
     $redisRunning = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
     if (-not ($redisRunning -match '^bn88-redis$')) {
-        Write-Host "Starting Redis container (bn88-redis, port 6380)..." -ForegroundColor Green
-        $null = docker rm -f bn88-redis 2>$null
-        $null = docker run -d --name bn88-redis -p 6380:6379 redis:8-alpine 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  ✓ Redis container started" -ForegroundColor Green
+        Write-Host "Ensuring Redis container (bn88-redis, port 6380)..." -ForegroundColor Green
+        $redisExists = (docker ps -a --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
+        if ($redisExists -match '^bn88-redis$') {
+            $null = docker start bn88-redis 2>$null
         } else {
-            Write-Host "WARN: Failed to start Redis container; port 6380 checks may FAIL." -ForegroundColor Yellow
+            $null = docker run -d --name bn88-redis -p 6380:6379 redis:8-alpine 2>$null
+        }
+
+        $redisRunningAfter = (docker ps --filter "name=^/bn88-redis$" --format "{{.Names}}" 2>$null)
+        if ($redisRunningAfter -match '^bn88-redis$') {
+            Write-Host "  ✓ Redis container ready" -ForegroundColor Green
+        } else {
+            Write-Host "WARN: Failed to ensure Redis container on :6380." -ForegroundColor Yellow
+            Write-Host "      Fix: docker start bn88-redis  (or)  docker run -d --name bn88-redis -p 6380:6379 redis:8-alpine" -ForegroundColor Yellow
         }
     }
 }

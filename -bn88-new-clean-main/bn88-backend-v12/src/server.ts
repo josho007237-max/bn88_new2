@@ -365,11 +365,21 @@ app.use("/api/webhooks/telegram", webhookLimiter, telegramWebhookRouter);
 /* Admin */
 app.use("/api/admin/uploads", adminUploadsRouter);
 
-if (config.ENABLE_ADMIN_API === "1") {
-  console.log("[BOOT] Admin API enabled (guarded by JWT)");
+const rawEnableAdminApi = String(process.env.ENABLE_ADMIN_API ?? "").trim();
+const adminApiEnabled = rawEnableAdminApi
+  ? rawEnableAdminApi === "1"
+  : !config.isProd;
+const adminApiReason = rawEnableAdminApi
+  ? `ENABLE_ADMIN_API=${rawEnableAdminApi}`
+  : `ENABLE_ADMIN_API is not set, default ${adminApiEnabled ? "enabled" : "disabled"} for NODE_ENV=${config.env.NODE_ENV}`;
+const adminApiLogContext = `NODE_ENV=${config.env.NODE_ENV} ENABLE_ADMIN_API(raw)=${rawEnableAdminApi || "(unset)"}`;
+
+if (adminApiEnabled) {
+  console.log(`[BOOT] Admin API enabled (${adminApiReason}; ${adminApiLogContext})`);
 
   // ✅ public
   app.use("/api/admin/auth", adminAuthRoutes);
+  app.use("/admin/auth", adminAuthRoutes);
 
   // ✅ guarded
   app.use("/api/admin/faq", authGuard, adminFaqRouter);
@@ -388,6 +398,8 @@ if (config.ENABLE_ADMIN_API === "1") {
 
   // ✅ mount adminRouter ครั้งเดียว
   app.use("/api/admin", authGuard, adminRouter);
+} else {
+  console.log(`[BOOT] Admin API disabled (${adminApiReason}; ${adminApiLogContext})`);
 }
 
 /* 404 & Errors */
