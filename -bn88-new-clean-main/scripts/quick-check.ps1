@@ -16,12 +16,36 @@ $FailSteps = @()
 $ports = @(3000, 5555, 6380)
 foreach ($port in $ports) {
   $listen = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-  if ($listen) { Pass "port $port is listening" } else { Fail 'PORT' "port $port is NOT listening" "Run .\start-dev.ps1 (or check netstat -ano | findstr :$port)" }
+  if ($listen) {
+    Pass "port $port is listening"
+    continue
+  }
+
+  if ($port -eq 3000) {
+    Fail 'PORT' "port 3000 is NOT listening (backend)" "Run: cd .\bn88-backend-v12; npm run dev"
+    continue
+  }
+  if ($port -eq 5555) {
+    Fail 'PORT' "port 5555 is NOT listening (frontend)" "Run: cd .\bn88-frontend-dashboard-v12; npm run dev -- --port 5555"
+    continue
+  }
+
+  Fail 'PORT' "port 6380 is NOT listening (redis)" "Run: docker start bn88-redis  (or)  docker run -d --name bn88-redis -p 6380:6379 redis:8-alpine"
 }
 
 try {
   $health = Invoke-WebRequest -Uri "$BaseUrl/api/health" -Method Get -UseBasicParsing
-  if ($health.StatusCode -eq 200) { Pass 'GET /api/health = 200' } else { Fail 'HEALTH' "GET /api/health = $($health.StatusCode)" "Check backend logs and retry: curl http://127.0.0.1:3000/api/health" }
+  if ($health.StatusCode -eq 200) {
+    Pass 'GET /api/health = 200'
+    try {
+      $healthJson = $health.Content | ConvertFrom-Json
+      Write-Host ("[INFO] /api/health adminApi = {0}" -f $healthJson.adminApi) -ForegroundColor Cyan
+    } catch {
+      Write-Host "[INFO] /api/health adminApi = (unparseable response)" -ForegroundColor Yellow
+    }
+  } else {
+    Fail 'HEALTH' "GET /api/health = $($health.StatusCode)" "Check backend logs and retry: curl http://127.0.0.1:3000/api/health"
+  }
 } catch {
   Fail 'HEALTH' "GET /api/health error: $($_.Exception.Message)" "Ensure backend is running on :3000 and retry"
 }
